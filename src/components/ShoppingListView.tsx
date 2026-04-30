@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Copy,
+  Files,
   MoreHorizontal,
   QrCode,
   RotateCcw,
@@ -27,6 +28,7 @@ import { formatCurrency, getCompletionPercent, getListStats, sortItems } from "@
 
 type ShoppingListViewProps = {
   list: ShoppingList;
+  lists: ShoppingList[];
   items: ShoppingItem[];
   collaborators: ShoppingListCollaborator[];
   currentUserId: string;
@@ -48,6 +50,7 @@ type ShoppingListViewProps = {
   onDeleteItem: (item: ShoppingItem) => void;
   onMoveItem: (item: ShoppingItem, direction: "up" | "down") => void;
   onBulkMoveItems: (items: ShoppingItem[], category: Category) => Promise<void>;
+  onBulkTransferItems: (items: ShoppingItem[], targetList: ShoppingList, mode: "copy" | "move") => Promise<void>;
   onClearPurchased: () => void;
   onUncheckAll: () => void;
   onDuplicateList: (list: ShoppingList) => void;
@@ -63,6 +66,7 @@ type ShoppingListViewProps = {
 
 export function ShoppingListView({
   list,
+  lists,
   items,
   collaborators,
   currentUserId,
@@ -76,6 +80,7 @@ export function ShoppingListView({
   onDeleteItem,
   onMoveItem,
   onBulkMoveItems,
+  onBulkTransferItems,
   onClearPurchased,
   onUncheckAll,
   onDuplicateList,
@@ -92,6 +97,7 @@ export function ShoppingListView({
   const [importOpen, setImportOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [bulkCategory, setBulkCategory] = useState<Category>("Outros");
+  const [bulkTargetListId, setBulkTargetListId] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
   const stats = getListStats(items);
   const percent = getCompletionPercent(items);
@@ -102,6 +108,10 @@ export function ShoppingListView({
     [items, selectedItemIds],
   );
   const selectionMode = selectedItemIds.size > 0;
+  const targetLists = useMemo(
+    () => lists.filter((item) => item.id !== list.id && item.completed_at === null),
+    [list.id, lists],
+  );
 
   useEffect(() => {
     setName(list.name);
@@ -166,6 +176,7 @@ export function ShoppingListView({
   function startSelection(item: ShoppingItem) {
     setSelectedItemIds(new Set([item.id]));
     setBulkCategory(item.category);
+    setBulkTargetListId(targetLists[0]?.id ?? "");
   }
 
   function toggleSelection(item: ShoppingItem) {
@@ -195,6 +206,22 @@ export function ShoppingListView({
     setBulkSaving(true);
     await addCategory(bulkCategory);
     await onBulkMoveItems(selectedItems, bulkCategory);
+    setBulkSaving(false);
+    clearSelection();
+  }
+
+  async function transferSelectedItems(mode: "copy" | "move") {
+    if (selectedItems.length === 0 || !bulkTargetListId) {
+      return;
+    }
+
+    const targetList = targetLists.find((item) => item.id === bulkTargetListId);
+    if (!targetList) {
+      return;
+    }
+
+    setBulkSaving(true);
+    await onBulkTransferItems(selectedItems, targetList, mode);
     setBulkSaving(false);
     clearSelection();
   }
@@ -362,7 +389,7 @@ export function ShoppingListView({
           />
         </div>
       ) : (
-        <div className={`mt-4 grid min-w-0 gap-4 ${selectionMode ? "pb-28" : ""}`}>
+        <div className={`mt-4 grid min-w-0 gap-4 ${selectionMode ? "pb-72" : ""}`}>
           {groupedItems.map(({ category, items: categoryItems }, index) => (
             <CategorySection
               key={category}
@@ -427,6 +454,42 @@ export function ShoppingListView({
                 Mover
               </button>
             </div>
+            {targetLists.length > 0 ? (
+              <div className="grid gap-2">
+                <select
+                  value={bulkTargetListId}
+                  onChange={(event) => setBulkTargetListId(event.target.value)}
+                  className="h-12 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                  aria-label="Lista de destino"
+                >
+                  {targetLists.map((targetList) => (
+                    <option key={targetList.id} value={targetList.id}>
+                      {targetList.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void transferSelectedItems("copy")}
+                    disabled={busy || bulkSaving || !bulkTargetListId}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-60"
+                  >
+                    <Files size={17} aria-hidden="true" />
+                    Copiar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void transferSelectedItems("move")}
+                    disabled={busy || bulkSaving || !bulkTargetListId}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-60"
+                  >
+                    <ArrowLeft size={17} className="rotate-180" aria-hidden="true" />
+                    Mover lista
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

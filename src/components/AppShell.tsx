@@ -543,6 +543,76 @@ export function AppShell({ session, shareToken }: AppShellProps) {
     setBusy(false);
   }
 
+  async function bulkTransferItems(
+    targetItems: ShoppingItem[],
+    targetList: ShoppingList,
+    mode: "copy" | "move",
+  ) {
+    if (!supabase || targetItems.length === 0) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    const targetListItems = items.filter((item) => item.list_id === targetList.id);
+    const basePosition =
+      targetListItems.length === 0 ? 0 : Math.max(...targetListItems.map((item) => item.position)) + 1;
+    const sourceListId = targetItems[0].list_id;
+
+    const { data: insertedItems, error: insertError } = await supabase
+      .from("shopping_items")
+      .insert(
+        targetItems.map((item, index) => ({
+          list_id: targetList.id,
+          user_id: user.id,
+          name: item.name,
+          category: item.category,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          purchased: false,
+          position: basePosition + index,
+        })),
+      )
+      .select()
+      .returns<ShoppingItem[]>();
+
+    if (insertError) {
+      setError(getSupabaseMessage(insertError, "Não foi possível copiar os itens para a lista escolhida."));
+      setBusy(false);
+      return;
+    }
+
+    let movedItemIds = new Set<string>();
+
+    if (mode === "move") {
+      const itemIds = targetItems.map((item) => item.id);
+      const { error: deleteError } = await supabase.from("shopping_items").delete().in("id", itemIds);
+
+      if (deleteError) {
+        setError(getSupabaseMessage(deleteError, "Os itens foram copiados, mas não consegui remover da lista original."));
+      } else {
+        movedItemIds = new Set(itemIds);
+      }
+    }
+
+    setItems((current) => [
+      ...current.filter((item) => !movedItemIds.has(item.id)),
+      ...(insertedItems ?? []),
+    ]);
+    await ensureCategoriesInList(
+      targetList.id,
+      targetItems.map((item) => item.category),
+    );
+    await touchList(targetList.id);
+
+    if (mode === "move") {
+      await touchList(sourceListId);
+    }
+
+    setBusy(false);
+  }
+
   async function deleteItem(item: ShoppingItem) {
     if (!supabase) {
       return;
@@ -756,6 +826,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
       {selectedList ? (
         <ShoppingListView
           list={selectedList}
+          lists={lists}
           items={selectedItems}
           collaborators={collaboratorsByList[selectedList.id] ?? []}
           currentUserId={user.id}
@@ -769,6 +840,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
           onDeleteItem={(item) => void deleteItem(item)}
           onMoveItem={(item, direction) => void moveItem(item, direction)}
           onBulkMoveItems={bulkMoveItems}
+          onBulkTransferItems={bulkTransferItems}
           onClearPurchased={() => setConfirm({ type: "clear-purchased", list: selectedList })}
           onUncheckAll={() => void uncheckAll()}
           onDuplicateList={(list) => void duplicateList(list)}
