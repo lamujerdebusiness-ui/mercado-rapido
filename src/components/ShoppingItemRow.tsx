@@ -3,6 +3,15 @@
 import { FormEvent, useState } from "react";
 import { Check, ChevronDown, ChevronUp, Pencil, Save, Trash2, X } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
+import {
+  UNIT_OPTIONS,
+  buildQuantity,
+  formatPriceFromNumber,
+  formatPriceInput,
+  parsePriceInput,
+  parseQuantity,
+  suggestItemDefaults,
+} from "@/lib/itemInput";
 import type { Category, ShoppingItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -30,11 +39,15 @@ export function ShoppingItemRow({
   onMove,
   onEdit,
 }: ShoppingItemRowProps) {
+  const initialQuantity = parseQuantity(item.quantity);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
-  const [quantity, setQuantity] = useState(item.quantity ?? "");
-  const [unitPrice, setUnitPrice] = useState(item.unit_price?.toString().replace(".", ",") ?? "");
+  const [quantityAmount, setQuantityAmount] = useState(initialQuantity.amount);
+  const [quantityUnit, setQuantityUnit] = useState(initialQuantity.unit || suggestItemDefaults(item.name).unit);
+  const [unitPrice, setUnitPrice] = useState(formatPriceFromNumber(item.unit_price));
   const [category, setCategory] = useState<Category>(item.category);
+  const [manualCategory, setManualCategory] = useState(false);
+  const [manualUnit, setManualUnit] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -48,11 +61,35 @@ export function ShoppingItemRow({
     setSaving(true);
     await onEdit(item, {
       name: nextName,
-      quantity: quantity.trim() || null,
+      quantity: buildQuantity(quantityAmount, quantityUnit),
       category,
-      unit_price: parsePrice(unitPrice),
+      unit_price: parsePriceInput(unitPrice),
     });
     setSaving(false);
+    setEditing(false);
+  }
+
+  function handleNameChange(value: string) {
+    setName(value);
+
+    const suggestion = suggestItemDefaults(value);
+    if (!manualCategory) {
+      setCategory(suggestion.category);
+    }
+    if (!manualUnit) {
+      setQuantityUnit(suggestion.unit);
+    }
+  }
+
+  function resetEditing() {
+    const nextQuantity = parseQuantity(item.quantity);
+    setName(item.name);
+    setQuantityAmount(nextQuantity.amount);
+    setQuantityUnit(nextQuantity.unit || suggestItemDefaults(item.name).unit);
+    setUnitPrice(formatPriceFromNumber(item.unit_price));
+    setCategory(item.category);
+    setManualCategory(false);
+    setManualUnit(false);
     setEditing(false);
   }
 
@@ -61,28 +98,55 @@ export function ShoppingItemRow({
       <form onSubmit={submit} className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
         <input
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => handleNameChange(event.target.value)}
           className="h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
           autoFocus
         />
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <input
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
+            value={quantityAmount}
+            onChange={(event) => setQuantityAmount(event.target.value)}
             className="h-11 rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            placeholder="Quantidade"
+            placeholder="Qtd"
+            inputMode="decimal"
+            aria-label="Quantidade"
           />
           <input
             value={unitPrice}
-            onChange={(event) => setUnitPrice(event.target.value)}
+            onChange={(event) => setUnitPrice(formatPriceInput(event.target.value))}
             className="h-11 rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
             placeholder="Preço"
-            inputMode="decimal"
+            inputMode="numeric"
+            aria-label="Preço estimado"
           />
+        </div>
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+          {UNIT_OPTIONS.map((unit) => (
+            <button
+              key={unit}
+              type="button"
+              onClick={() => {
+                setQuantityUnit(unit);
+                setManualUnit(true);
+              }}
+              className={`min-h-10 shrink-0 rounded-lg border px-3 text-sm font-semibold ${
+                quantityUnit === unit
+                  ? "border-emerald-600 bg-white text-emerald-700"
+                  : "border-emerald-100 bg-emerald-50 text-slate-700"
+              }`}
+            >
+              {unit}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2">
           <select
             value={category}
-            onChange={(event) => setCategory(event.target.value as Category)}
-            className="h-11 rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+            onChange={(event) => {
+              setCategory(event.target.value as Category);
+              setManualCategory(true);
+            }}
+            className="h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
           >
             {CATEGORIES.map((itemCategory) => (
               <option key={itemCategory} value={itemCategory}>
@@ -94,13 +158,7 @@ export function ShoppingItemRow({
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => {
-              setName(item.name);
-              setQuantity(item.quantity ?? "");
-              setUnitPrice(item.unit_price?.toString().replace(".", ",") ?? "");
-              setCategory(item.category);
-              setEditing(false);
-            }}
+            onClick={resetEditing}
             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700"
           >
             <X size={16} aria-hidden="true" />
@@ -203,14 +261,4 @@ export function ShoppingItemRow({
       </div>
     </div>
   );
-}
-
-function parsePrice(value: string) {
-  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
-  if (!normalized) {
-    return null;
-  }
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
 }
