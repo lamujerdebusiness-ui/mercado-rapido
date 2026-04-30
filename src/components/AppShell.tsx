@@ -364,6 +364,52 @@ export function AppShell({ session, shareToken }: AppShellProps) {
     setBusy(false);
   }
 
+  async function importInvoiceItems(
+    importedItems: Array<{
+      name: string;
+      quantity: string | null;
+      category: Category;
+      unit_price: number | null;
+    }>,
+  ) {
+    if (!supabase || !selectedListId || importedItems.length === 0) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    const listItems = items.filter((item) => item.list_id === selectedListId);
+    const basePosition =
+      listItems.length === 0 ? 0 : Math.max(...listItems.map((item) => item.position)) + 1;
+
+    const { data, error: insertError } = await supabase
+      .from("shopping_items")
+      .insert(
+        importedItems.map((item, index) => ({
+          list_id: selectedListId,
+          user_id: user.id,
+          name: item.name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          category: item.category,
+          purchased: false,
+          position: basePosition + index,
+        })),
+      )
+      .select()
+      .returns<ShoppingItem[]>();
+
+    if (insertError) {
+      setError(getSupabaseMessage(insertError, "Não foi possível importar os itens da nota."));
+    } else {
+      setItems((current) => [...current, ...(data ?? [])]);
+      await touchList(selectedListId);
+    }
+
+    setBusy(false);
+  }
+
   async function toggleItem(item: ShoppingItem) {
     if (!supabase) {
       return;
@@ -649,6 +695,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
           onArchiveList={(list, archived) => void archiveList(list, archived)}
           onFinishList={(list) => setConfirm({ type: "finish-list", list })}
           onShareList={(list) => void copyShareLink(list)}
+          onImportInvoice={importInvoiceItems}
         />
       ) : (
         <ListDashboard

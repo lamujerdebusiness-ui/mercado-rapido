@@ -2,7 +2,7 @@
 
 ## Descrição
 
-Aplicativo simples de lista de compras com Supabase. Ele permite criar listas, adicionar itens por categoria, marcar comprados, compartilhar lista com familiar, duplicar listas antigas, estimar valores, arquivar listas e sincronizar os dados entre dispositivos após login.
+Aplicativo simples de lista de compras com Supabase. Ele permite criar listas, adicionar itens por categoria, marcar comprados, compartilhar lista com familiar, duplicar listas antigas, importar NFC-e, estimar valores, arquivar listas e sincronizar os dados entre dispositivos após login.
 
 ## Stack
 
@@ -131,9 +131,16 @@ Cada usuário consegue selecionar, criar, editar e excluir as próprias listas e
 - Criar, renomear, duplicar, excluir e arquivar listas.
 - Compartilhar uma lista por link interno do app.
 - Adicionar itens com categoria, quantidade e preço estimado.
+- Importar itens de NFC-e pelo QR Code/link público da SEFAZ-RS/SVRS.
 - Marcar itens como comprados, editar, excluir e mover para cima/baixo.
 - Ver total estimado da lista e total já marcado como comprado.
 - Finalizar compra para manter a lista no histórico.
+
+## Importação de NFC-e
+
+Na tela da lista, abra o menu de três pontos e selecione `Importar NFC-e`. O app tenta ler o QR Code com a câmera do celular ou permite colar o link da consulta pública.
+
+A importação usa uma rota server-side do próprio Next.js para buscar a página pública da SEFAZ-RS/SVRS, extrair produtos, quantidades e valores unitários, e inserir os itens na lista atual. Se a SEFAZ alterar o HTML da consulta ou exigir validação manual, a importação pode falhar e mostrar uma mensagem para tentar novamente.
 
 ## Comandos úteis
 
@@ -149,4 +156,3 @@ npm run build
 - Modo offline.
 - Templates favoritos.
 - Realtime.
-- Importação de cupom fiscal no futuro.

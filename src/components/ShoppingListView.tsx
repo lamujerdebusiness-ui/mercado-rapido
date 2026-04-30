@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Copy,
   MoreHorizontal,
+  QrCode,
   RotateCcw,
   Share2,
   Trash2,
@@ -17,6 +18,7 @@ import {
 import { AddItemForm } from "./AddItemForm";
 import { CategorySection } from "./CategorySection";
 import { EmptyState } from "./EmptyState";
+import { InvoiceImport } from "./InvoiceImport";
 import { CATEGORIES } from "@/lib/categories";
 import type { Category, ShoppingItem, ShoppingList, ShoppingListCollaborator } from "@/lib/types";
 import { formatCurrency, getCompletionPercent, getListStats, sortItems } from "@/lib/utils";
@@ -50,6 +52,9 @@ type ShoppingListViewProps = {
   onArchiveList: (list: ShoppingList, archived: boolean) => void;
   onFinishList: (list: ShoppingList) => void;
   onShareList: (list: ShoppingList) => void;
+  onImportInvoice: (
+    items: Array<{ name: string; quantity: string | null; category: Category; unit_price: number | null }>,
+  ) => Promise<void>;
 };
 
 export function ShoppingListView({
@@ -73,10 +78,12 @@ export function ShoppingListView({
   onArchiveList,
   onFinishList,
   onShareList,
+  onImportInvoice,
 }: ShoppingListViewProps) {
   const [name, setName] = useState(list.name);
   const [renaming, setRenaming] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const stats = getListStats(items);
   const percent = getCompletionPercent(items);
   const sharingText = getSharingText(list, collaborators, currentUserId);
@@ -211,6 +218,15 @@ export function ShoppingListView({
         {actionsOpen ? (
           <div className="absolute right-0 top-12 z-10 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
             <ListActionButton
+              icon={<QrCode size={17} aria-hidden="true" />}
+              label="Importar NFC-e"
+              disabled={busy}
+              onClick={() => {
+                setActionsOpen(false);
+                setImportOpen(true);
+              }}
+            />
+            <ListActionButton
               icon={<Share2 size={17} aria-hidden="true" />}
               label="Copiar link familiar"
               disabled={busy}
@@ -290,6 +306,13 @@ export function ShoppingListView({
           ))}
         </div>
       )}
+
+      <InvoiceImport
+        open={importOpen}
+        busy={busy}
+        onClose={() => setImportOpen(false)}
+        onImport={onImportInvoice}
+      />
     </section>
   );
 }
