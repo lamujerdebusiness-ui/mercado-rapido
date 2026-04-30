@@ -1,43 +1,14 @@
-create extension if not exists "pgcrypto";
+alter table public.shopping_lists
+add column if not exists archived boolean not null default false,
+add column if not exists completed_at timestamptz,
+add column if not exists share_token uuid not null default gen_random_uuid(),
+add column if not exists share_enabled boolean not null default true;
 
-create table if not exists public.shopping_lists (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null,
-  position integer not null default 0,
-  archived boolean not null default false,
-  completed_at timestamptz,
-  share_token uuid not null default gen_random_uuid(),
-  share_enabled boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.shopping_items (
-  id uuid primary key default gen_random_uuid(),
-  list_id uuid not null references public.shopping_lists(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null,
-  category text not null default 'Outros',
-  quantity text,
-  unit_price numeric(10, 2),
-  purchased boolean not null default false,
-  position integer not null default 0,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index if not exists idx_shopping_lists_user_id
-on public.shopping_lists(user_id);
+alter table public.shopping_items
+add column if not exists unit_price numeric(10, 2);
 
 create unique index if not exists idx_shopping_lists_share_token
 on public.shopping_lists(share_token);
-
-create index if not exists idx_shopping_items_list_id
-on public.shopping_items(list_id);
-
-create index if not exists idx_shopping_items_user_id
-on public.shopping_items(user_id);
 
 create table if not exists public.shopping_list_collaborators (
   list_id uuid not null references public.shopping_lists(id) on delete cascade,
@@ -50,46 +21,7 @@ create table if not exists public.shopping_list_collaborators (
 create index if not exists idx_shopping_list_collaborators_user_id
 on public.shopping_list_collaborators(user_id);
 
-create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-drop trigger if exists set_shopping_lists_updated_at on public.shopping_lists;
-create trigger set_shopping_lists_updated_at
-before update on public.shopping_lists
-for each row
-execute function public.set_updated_at();
-
-drop trigger if exists set_shopping_items_updated_at on public.shopping_items;
-create trigger set_shopping_items_updated_at
-before update on public.shopping_items
-for each row
-execute function public.set_updated_at();
-
-alter table public.shopping_lists enable row level security;
-alter table public.shopping_items enable row level security;
 alter table public.shopping_list_collaborators enable row level security;
-
-create or replace function public.is_list_collaborator(target_list_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.shopping_list_collaborators
-    where list_id = target_list_id
-    and user_id = auth.uid()
-  );
-$$;
 
 create or replace function public.can_access_list(target_list_id uuid)
 returns boolean
@@ -104,7 +36,12 @@ as $$
     where id = target_list_id
     and user_id = auth.uid()
   )
-  or public.is_list_collaborator(target_list_id);
+  or exists (
+    select 1
+    from public.shopping_list_collaborators
+    where list_id = target_list_id
+    and user_id = auth.uid()
+  );
 $$;
 
 create or replace function public.accept_list_share(token uuid)
@@ -141,10 +78,10 @@ end;
 $$;
 
 drop policy if exists "Users can select collaborators for accessible lists" on public.shopping_list_collaborators;
-create policy "Users can select own collaborator rows"
+create policy "Users can select collaborators for accessible lists"
 on public.shopping_list_collaborators
 for select
-using (auth.uid() = user_id);
+using (public.can_access_list(list_id));
 
 drop policy if exists "Owners can manage collaborators" on public.shopping_list_collaborators;
 create policy "Owners can manage collaborators"
@@ -171,16 +108,7 @@ drop policy if exists "Users can select own lists" on public.shopping_lists;
 create policy "Users can select accessible lists"
 on public.shopping_lists
 for select
-using (
-  auth.uid() = user_id
-  or public.is_list_collaborator(id)
-);
-
-drop policy if exists "Users can insert own lists" on public.shopping_lists;
-create policy "Users can insert own lists"
-on public.shopping_lists
-for insert
-with check (auth.uid() = user_id);
+using (public.can_access_list(id));
 
 drop policy if exists "Users can update own lists" on public.shopping_lists;
 create policy "Users can update accessible lists"

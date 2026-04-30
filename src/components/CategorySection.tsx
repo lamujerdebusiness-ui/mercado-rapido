@@ -12,7 +12,7 @@ type CategorySectionProps = {
   onMove: (item: ShoppingItem, direction: "up" | "down") => void;
   onEdit: (
     item: ShoppingItem,
-    payload: { name: string; quantity: string | null; category: Category },
+    payload: { name: string; quantity: string | null; category: Category; unit_price: number | null },
   ) => Promise<void>;
 };
 

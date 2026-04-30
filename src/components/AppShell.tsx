@@ -7,26 +7,32 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { ListDashboard } from "./ListDashboard";
 import { ShoppingListView } from "./ShoppingListView";
 import { supabase } from "@/lib/supabaseClient";
-import type { Category, ListStats, ShoppingItem, ShoppingList } from "@/lib/types";
+import type { Category, DashboardView, ListStats, ShoppingItem, ShoppingList } from "@/lib/types";
 import { getListStats, getSupabaseMessage, sortItems } from "@/lib/utils";
 
 type AppShellProps = {
   session: Session;
+  shareToken?: string | null;
 };
 
 type ConfirmState =
   | { type: "delete-list"; list: ShoppingList }
   | { type: "clear-purchased"; list: ShoppingList }
+  | { type: "finish-list"; list: ShoppingList }
   | null;
 
-export function AppShell({ session }: AppShellProps) {
+const EMPTY_STATS = { total: 0, purchased: 0, pending: 0, estimatedTotal: 0, purchasedTotal: 0 };
+
+export function AppShell({ session, shareToken }: AppShellProps) {
   const user = session.user;
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
+  const [dashboardView, setDashboardView] = useState<DashboardView>("active");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [confirm, setConfirm] = useState<ConfirmState>(null);
 
   const selectedList = lists.find((list) => list.id === selectedListId) ?? null;
@@ -42,28 +48,42 @@ export function AppShell({ session }: AppShellProps) {
   }, [items, lists]);
 
   useEffect(() => {
-    void loadAll();
-  }, []);
+    void loadAll(shareToken);
+  }, [shareToken]);
 
-  async function loadAll() {
+  async function loadAll(tokenToAccept?: string | null) {
     if (!supabase) {
       return;
     }
 
     setLoading(true);
     setError("");
+    setNotice("");
+    let sharedListId: string | null = null;
+
+    if (tokenToAccept) {
+      const { data, error: shareError } = await supabase.rpc("accept_list_share", {
+        token: tokenToAccept,
+      });
+
+      if (shareError) {
+        setError("Não foi possível abrir o link compartilhado. Verifique se o link está correto.");
+      } else {
+        sharedListId = data as string;
+        setNotice("Lista compartilhada adicionada à sua conta.");
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    }
 
     const [listsResult, itemsResult] = await Promise.all([
       supabase
         .from("shopping_lists")
         .select("*")
-        .eq("user_id", user.id)
         .order("updated_at", { ascending: false })
         .returns<ShoppingList[]>(),
       supabase
         .from("shopping_items")
         .select("*")
-        .eq("user_id", user.id)
         .order("position", { ascending: true })
         .returns<ShoppingItem[]>(),
     ]);
@@ -88,6 +108,11 @@ export function AppShell({ session }: AppShellProps) {
       );
     } else {
       setItems(itemsResult.data ?? []);
+    }
+
+    if (sharedListId) {
+      setSelectedListId(sharedListId);
+      setDashboardView("active");
     }
 
     setLoading(false);
@@ -244,6 +269,7 @@ export function AppShell({ session }: AppShellProps) {
             name: item.name,
             category: item.category,
             quantity: item.quantity,
+            unit_price: item.unit_price,
             purchased: false,
             position: item.position,
           })),
@@ -264,7 +290,12 @@ export function AppShell({ session }: AppShellProps) {
     setBusy(false);
   }
 
-  async function addItem(payload: { name: string; quantity: string | null; category: Category }) {
+  async function addItem(payload: {
+    name: string;
+    quantity: string | null;
+    category: Category;
+    unit_price: number | null;
+  }) {
     if (!supabase || !selectedListId) {
       return;
     }
@@ -283,6 +314,7 @@ export function AppShell({ session }: AppShellProps) {
         user_id: user.id,
         name: payload.name,
         quantity: payload.quantity,
+        unit_price: payload.unit_price,
         category: payload.category,
         purchased: false,
         position: nextPosition,
@@ -327,7 +359,7 @@ export function AppShell({ session }: AppShellProps) {
 
   async function editItem(
     item: ShoppingItem,
-    payload: { name: string; quantity: string | null; category: Category },
+    payload: { name: string; quantity: string | null; category: Category; unit_price: number | null },
   ) {
     if (!supabase) {
       return;
@@ -473,6 +505,72 @@ export function AppShell({ session }: AppShellProps) {
     setBusy(false);
   }
 
+  async function archiveList(list: ShoppingList, archived: boolean) {
+    if (!supabase) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    const { data, error: updateError } = await supabase
+      .from("shopping_lists")
+      .update({ archived })
+      .eq("id", list.id)
+      .select()
+      .single<ShoppingList>();
+
+    if (updateError || !data) {
+      setError(getSupabaseMessage(updateError, "Não foi possível atualizar o arquivamento."));
+    } else {
+      setLists((current) => current.map((item) => (item.id === data.id ? data : item)));
+      setDashboardView(archived ? "archived" : "active");
+      if (selectedListId === list.id) {
+        setSelectedListId(null);
+      }
+    }
+
+    setBusy(false);
+  }
+
+  async function finishList(list: ShoppingList) {
+    if (!supabase) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    const { data, error: updateError } = await supabase
+      .from("shopping_lists")
+      .update({ completed_at: new Date().toISOString(), archived: true })
+      .eq("id", list.id)
+      .select()
+      .single<ShoppingList>();
+
+    if (updateError || !data) {
+      setError(getSupabaseMessage(updateError, "Não foi possível finalizar a compra."));
+    } else {
+      setLists((current) => current.map((item) => (item.id === data.id ? data : item)));
+      setDashboardView("history");
+      setSelectedListId(null);
+      setConfirm(null);
+    }
+
+    setBusy(false);
+  }
+
+  async function copyShareLink(list: ShoppingList) {
+    const shareUrl = `${window.location.origin}/?share=${list.share_token}`;
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setNotice("Link copiado. Envie pelo WhatsApp ou outro app de mensagem.");
+    } catch {
+      setNotice(`Copie este link: ${shareUrl}`);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -514,30 +612,51 @@ export function AppShell({ session }: AppShellProps) {
           onUncheckAll={() => void uncheckAll()}
           onDuplicateList={(list) => void duplicateList(list)}
           onDeleteList={(list) => setConfirm({ type: "delete-list", list })}
+          onArchiveList={(list, archived) => void archiveList(list, archived)}
+          onFinishList={(list) => setConfirm({ type: "finish-list", list })}
+          onShareList={(list) => void copyShareLink(list)}
         />
       ) : (
         <ListDashboard
           lists={lists}
           statsByList={statsByList}
+          view={dashboardView}
           loading={loading}
           busy={busy || loading}
           error={error}
+          notice={notice}
+          onChangeView={setDashboardView}
           onCreateList={() => void createList()}
           onOpenList={setSelectedListId}
           onDuplicateList={(list) => void duplicateList(list)}
           onDeleteList={(list) => setConfirm({ type: "delete-list", list })}
+          onArchiveList={(list, archived) => void archiveList(list, archived)}
         />
       )}
 
       <ConfirmDialog
         open={confirm !== null}
-        title={confirm?.type === "delete-list" ? "Excluir lista" : "Remover comprados"}
+        title={
+          confirm?.type === "delete-list"
+            ? "Excluir lista"
+            : confirm?.type === "finish-list"
+              ? "Finalizar compra"
+              : "Remover comprados"
+        }
         description={
           confirm?.type === "delete-list"
             ? "Tem certeza que deseja excluir esta lista? Essa ação não pode ser desfeita."
-            : "Remover todos os itens comprados desta lista? Essa ação não pode ser desfeita."
+            : confirm?.type === "finish-list"
+              ? "Finalizar esta compra e enviar a lista para o histórico? Ela ficará arquivada para comparação."
+              : "Remover todos os itens comprados desta lista? Essa ação não pode ser desfeita."
         }
-        confirmLabel={confirm?.type === "delete-list" ? "Excluir" : "Remover"}
+        confirmLabel={
+          confirm?.type === "delete-list"
+            ? "Excluir"
+            : confirm?.type === "finish-list"
+              ? "Finalizar"
+              : "Remover"
+        }
         busy={busy}
         onCancel={() => setConfirm(null)}
         onConfirm={() => {
@@ -546,6 +665,9 @@ export function AppShell({ session }: AppShellProps) {
           }
           if (confirm?.type === "clear-purchased") {
             void clearPurchased(confirm.list);
+          }
+          if (confirm?.type === "finish-list") {
+            void finishList(confirm.list);
           }
         }}
       />

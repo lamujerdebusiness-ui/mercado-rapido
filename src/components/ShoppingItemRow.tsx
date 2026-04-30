@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { Check, ChevronDown, ChevronUp, Pencil, Save, Trash2, X } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
 import type { Category, ShoppingItem } from "@/lib/types";
+import { formatCurrency } from "@/lib/utils";
 
 type ShoppingItemRowProps = {
   item: ShoppingItem;
@@ -15,7 +16,7 @@ type ShoppingItemRowProps = {
   onMove: (item: ShoppingItem, direction: "up" | "down") => void;
   onEdit: (
     item: ShoppingItem,
-    payload: { name: string; quantity: string | null; category: Category },
+    payload: { name: string; quantity: string | null; category: Category; unit_price: number | null },
   ) => Promise<void>;
 };
 
@@ -32,6 +33,7 @@ export function ShoppingItemRow({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
   const [quantity, setQuantity] = useState(item.quantity ?? "");
+  const [unitPrice, setUnitPrice] = useState(item.unit_price?.toString().replace(".", ",") ?? "");
   const [category, setCategory] = useState<Category>(item.category);
   const [saving, setSaving] = useState(false);
 
@@ -48,6 +50,7 @@ export function ShoppingItemRow({
       name: nextName,
       quantity: quantity.trim() || null,
       category,
+      unit_price: parsePrice(unitPrice),
     });
     setSaving(false);
     setEditing(false);
@@ -62,12 +65,19 @@ export function ShoppingItemRow({
           className="h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
           autoFocus
         />
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
           <input
             value={quantity}
             onChange={(event) => setQuantity(event.target.value)}
             className="h-11 rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
             placeholder="Quantidade"
+          />
+          <input
+            value={unitPrice}
+            onChange={(event) => setUnitPrice(event.target.value)}
+            className="h-11 rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+            placeholder="Preço"
+            inputMode="decimal"
           />
           <select
             value={category}
@@ -87,6 +97,7 @@ export function ShoppingItemRow({
             onClick={() => {
               setName(item.name);
               setQuantity(item.quantity ?? "");
+              setUnitPrice(item.unit_price?.toString().replace(".", ",") ?? "");
               setCategory(item.category);
               setEditing(false);
             }}
@@ -141,6 +152,11 @@ export function ShoppingItemRow({
             {item.quantity}
           </p>
         ) : null}
+        {item.unit_price !== null ? (
+          <p className={`truncate text-sm font-semibold ${item.purchased ? "text-slate-400" : "text-emerald-700"}`}>
+            {formatCurrency(item.unit_price)}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
@@ -187,4 +203,14 @@ export function ShoppingItemRow({
       </div>
     </div>
   );
+}
+
+function parsePrice(value: string) {
+  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }

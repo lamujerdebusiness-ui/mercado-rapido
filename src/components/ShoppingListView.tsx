@@ -1,13 +1,13 @@
 "use client";
 
 import { ChangeEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Copy, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, CheckCircle2, Copy, RotateCcw, Share2, Trash2 } from "lucide-react";
 import { AddItemForm } from "./AddItemForm";
 import { CategorySection } from "./CategorySection";
 import { EmptyState } from "./EmptyState";
 import { CATEGORIES } from "@/lib/categories";
 import type { Category, ShoppingItem, ShoppingList } from "@/lib/types";
-import { getCompletionPercent, getListStats, sortItems } from "@/lib/utils";
+import { formatCurrency, getCompletionPercent, getListStats, sortItems } from "@/lib/utils";
 
 type ShoppingListViewProps = {
   list: ShoppingList;
@@ -16,11 +16,16 @@ type ShoppingListViewProps = {
   error?: string;
   onBack: () => void;
   onRename: (list: ShoppingList, name: string) => Promise<void>;
-  onAddItem: (payload: { name: string; quantity: string | null; category: Category }) => Promise<void>;
+  onAddItem: (payload: {
+    name: string;
+    quantity: string | null;
+    category: Category;
+    unit_price: number | null;
+  }) => Promise<void>;
   onToggleItem: (item: ShoppingItem) => void;
   onEditItem: (
     item: ShoppingItem,
-    payload: { name: string; quantity: string | null; category: Category },
+    payload: { name: string; quantity: string | null; category: Category; unit_price: number | null },
   ) => Promise<void>;
   onDeleteItem: (item: ShoppingItem) => void;
   onMoveItem: (item: ShoppingItem, direction: "up" | "down") => void;
@@ -28,6 +33,9 @@ type ShoppingListViewProps = {
   onUncheckAll: () => void;
   onDuplicateList: (list: ShoppingList) => void;
   onDeleteList: (list: ShoppingList) => void;
+  onArchiveList: (list: ShoppingList, archived: boolean) => void;
+  onFinishList: (list: ShoppingList) => void;
+  onShareList: (list: ShoppingList) => void;
 };
 
 export function ShoppingListView({
@@ -46,6 +54,9 @@ export function ShoppingListView({
   onUncheckAll,
   onDuplicateList,
   onDeleteList,
+  onArchiveList,
+  onFinishList,
+  onShareList,
 }: ShoppingListViewProps) {
   const [name, setName] = useState(list.name);
   const [renaming, setRenaming] = useState(false);
@@ -144,8 +155,14 @@ export function ShoppingListView({
           <SummaryTile label="Itens" value={stats.total} />
           <SummaryTile label="Comprados" value={stats.purchased} />
           <SummaryTile label="Pendentes" value={stats.pending} />
-          <SummaryTile label="Concluído" value={`${percent}%`} />
+          <SummaryTile label="Estimado" value={formatCurrency(stats.estimatedTotal)} />
         </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div className="h-full rounded-full bg-emerald-600" style={{ width: `${percent}%` }} />
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          {percent}% concluído · {formatCurrency(stats.purchasedTotal)} já marcado como comprado
+        </p>
       </div>
 
       {error ? (
@@ -157,6 +174,24 @@ export function ShoppingListView({
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onShareList(list)}
+          disabled={busy}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+        >
+          <Share2 size={17} aria-hidden="true" />
+          Copiar link familiar
+        </button>
+        <button
+          type="button"
+          onClick={() => onFinishList(list)}
+          disabled={busy || items.length === 0 || list.completed_at !== null}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-100 bg-white px-4 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 disabled:opacity-50"
+        >
+          <CheckCircle2 size={17} aria-hidden="true" />
+          Finalizar compra
+        </button>
         <button
           type="button"
           onClick={onUncheckAll}
@@ -174,6 +209,15 @@ export function ShoppingListView({
         >
           <Trash2 size={17} aria-hidden="true" />
           Remover comprados
+        </button>
+        <button
+          type="button"
+          onClick={() => onArchiveList(list, !list.archived)}
+          disabled={busy || list.completed_at !== null}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+        >
+          {list.archived ? <ArchiveRestore size={17} aria-hidden="true" /> : <Archive size={17} aria-hidden="true" />}
+          {list.archived ? "Reativar lista" : "Arquivar lista"}
         </button>
       </div>
 

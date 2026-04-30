@@ -73,5 +73,7 @@ export default function Home() {
     return <AuthScreen />;
   }
 
-  return <AppShell session={session} />;
+  const shareToken = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("share") : null;
+
+  return <AppShell session={session} shareToken={shareToken} />;
 }

@@ -11,11 +11,26 @@ export function formatDateTime(value: string) {
 
 export function getListStats(items: ShoppingItem[]): ListStats {
   const purchased = items.filter((item) => item.purchased).length;
+  const estimatedTotal = items.reduce((total, item) => total + Number(item.unit_price ?? 0), 0);
+  const purchasedTotal = items.reduce(
+    (total, item) => total + (item.purchased ? Number(item.unit_price ?? 0) : 0),
+    0,
+  );
+
   return {
     total: items.length,
     purchased,
     pending: items.length - purchased,
+    estimatedTotal,
+    purchasedTotal,
   };
+}
+
+export function formatCurrency(value: number | null | undefined) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(Number(value ?? 0));
 }
 
 export function getCompletionPercent(items: ShoppingItem[]) {

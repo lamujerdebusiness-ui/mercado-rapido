@@ -2,7 +2,7 @@
 
 ## Descrição
 
-Aplicativo simples de lista de compras com Supabase. Ele permite criar listas, adicionar itens por categoria, marcar comprados, duplicar listas antigas e sincronizar os dados entre dispositivos após login.
+Aplicativo simples de lista de compras com Supabase. Ele permite criar listas, adicionar itens por categoria, marcar comprados, compartilhar lista com familiar, duplicar listas antigas, estimar valores, arquivar listas e sincronizar os dados entre dispositivos após login.
 
 ## Stack
 
@@ -46,7 +46,7 @@ O arquivo `.env.local` deve apontar para a API local e usar a anon key local. Pa
 npm run supabase:status
 ```
 
-As tabelas e políticas são aplicadas pela migration em `supabase/migrations/20260429000000_create_shopping_tables.sql`.
+As tabelas e políticas são aplicadas pelas migrations em `supabase/migrations/`.
 
 ## Configurar Supabase
 
@@ -118,11 +118,22 @@ O arquivo `supabase/schema.sql` cria:
 
 - `shopping_lists`
 - `shopping_items`
+- `shopping_list_collaborators`
 - índices
 - triggers de `updated_at`
 - políticas de Row Level Security
 
-Cada usuário só consegue selecionar, criar, editar e excluir as próprias listas e itens. Os itens também são validados contra a lista do mesmo usuário.
+Cada usuário consegue selecionar, criar, editar e excluir as próprias listas e itens. Uma lista também pode ser acessada por um familiar quando o dono copia o link familiar dentro do app e envia por WhatsApp ou outro app de mensagem. O familiar precisa estar logado e, ao abrir o link, entra como colaborador da lista.
+
+## Funcionalidades
+
+- Login por email/senha e Google via Supabase Auth.
+- Criar, renomear, duplicar, excluir e arquivar listas.
+- Compartilhar uma lista por link interno do app.
+- Adicionar itens com categoria, quantidade e preço estimado.
+- Marcar itens como comprados, editar, excluir e mover para cima/baixo.
+- Ver total estimado da lista e total já marcado como comprado.
+- Finalizar compra para manter a lista no histórico.
 
 ## Comandos úteis
 
@@ -136,10 +147,6 @@ npm run build
 
 - PWA.
 - Modo offline.
-- Compartilhar lista com família.
-- Preços dos itens.
-- Total estimado da compra.
-- Histórico de compras.
 - Templates favoritos.
 - Realtime.
 - Importação de cupom fiscal no futuro.

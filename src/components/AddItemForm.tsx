@@ -7,12 +7,18 @@ import type { Category } from "@/lib/types";
 
 type AddItemFormProps = {
   busy?: boolean;
-  onAdd: (payload: { name: string; quantity: string | null; category: Category }) => Promise<void>;
+  onAdd: (payload: {
+    name: string;
+    quantity: string | null;
+    category: Category;
+    unit_price: number | null;
+  }) => Promise<void>;
 };
 
 export function AddItemForm({ busy, onAdd }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [unitPrice, setUnitPrice] = useState("");
   const [category, setCategory] = useState<Category>(DEFAULT_CATEGORY);
   const nameRef = useRef<HTMLInputElement | null>(null);
 
@@ -29,10 +35,12 @@ export function AddItemForm({ busy, onAdd }: AddItemFormProps) {
       name: trimmedName,
       quantity: quantity.trim() || null,
       category,
+      unit_price: parsePrice(unitPrice),
     });
 
     setName("");
     setQuantity("");
+    setUnitPrice("");
     window.requestAnimationFrame(() => nameRef.current?.focus());
   }
 
@@ -51,12 +59,20 @@ export function AddItemForm({ busy, onAdd }: AddItemFormProps) {
         autoComplete="off"
       />
 
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto]">
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr]">
         <input
           value={quantity}
           onChange={(event) => setQuantity(event.target.value)}
           className="h-12 rounded-lg border border-slate-300 px-4 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
           placeholder="Quantidade"
+          autoComplete="off"
+        />
+        <input
+          value={unitPrice}
+          onChange={(event) => setUnitPrice(event.target.value)}
+          className="h-12 rounded-lg border border-slate-300 px-4 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+          placeholder="Preço estimado"
+          inputMode="decimal"
           autoComplete="off"
         />
         <select
@@ -81,4 +97,14 @@ export function AddItemForm({ busy, onAdd }: AddItemFormProps) {
       </div>
     </form>
   );
+}
+
+function parsePrice(value: string) {
+  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }
