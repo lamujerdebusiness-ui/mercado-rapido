@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ShoppingItemRow } from "./ShoppingItemRow";
+import { getCategoryColor } from "@/lib/categoryColors";
 import type { Category, ShoppingItem } from "@/lib/types";
 
 type CategorySectionProps = {
@@ -48,11 +49,14 @@ export function CategorySection({
     return null;
   }
 
+  const color = getCategoryColor(category);
+
   return (
-    <section className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-soft">
+    <section className={`w-full min-w-0 overflow-hidden rounded-xl border ${color.border} ${color.sectionBg} p-3 shadow-soft`}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="truncate text-sm font-bold uppercase tracking-[0.08em] text-slate-500">{category}</h2>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={`h-3 w-3 shrink-0 rounded-full ${color.accent}`} aria-hidden="true" />
+          <h2 className={`truncate text-sm font-bold uppercase tracking-[0.08em] ${color.text}`}>{category}</h2>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
@@ -73,7 +77,7 @@ export function CategorySection({
           >
             <ChevronDown size={16} aria-hidden="true" />
           </button>
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${color.chipBg} ${color.chipText}`}>
             {items.length}
           </span>
         </div>

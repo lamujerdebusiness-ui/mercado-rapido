@@ -3,6 +3,7 @@
 import { FormEvent, PointerEvent, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, Pencil, Save, Trash2, X } from "lucide-react";
 import { CategorySelect } from "./CategorySelect";
+import { getCategoryColor } from "@/lib/categoryColors";
 import {
   UNIT_OPTIONS,
   buildQuantity,
@@ -63,6 +64,7 @@ export function ShoppingItemRow({
   const [saving, setSaving] = useState(false);
   const longPressTimerRef = useRef<number | null>(null);
   const itemTotal = getItemTotal(item);
+  const color = getCategoryColor(item.category);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -192,7 +194,7 @@ export function ShoppingItemRow({
               setCategory(nextCategory);
               setManualCategory(true);
             }}
-            className="h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+            className="h-11 w-full rounded-lg border border-slate-300 px-3 pl-8 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
           />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -227,7 +229,7 @@ export function ShoppingItemRow({
       onPointerCancel={clearLongPress}
       onPointerLeave={clearLongPress}
       className={`grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border p-2 transition ${
-        selected ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-100 bg-white"
+        selected ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100" : `${color.border} bg-white`
       }`}
     >
       <button
@@ -252,6 +254,12 @@ export function ShoppingItemRow({
       </button>
 
       <div className="min-w-0">
+        <div className="mb-1 flex items-center gap-1.5">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${color.accent}`} aria-hidden="true" />
+          <span className={`truncate text-[11px] font-semibold uppercase tracking-wide ${color.text}`}>
+            {item.category}
+          </span>
+        </div>
         <p
           className={`truncate text-base font-medium ${
             item.purchased ? "text-slate-400 line-through" : "text-slate-950"

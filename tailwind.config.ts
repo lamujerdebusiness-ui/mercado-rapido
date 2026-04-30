@@ -6,6 +6,14 @@ const config: Config = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: [
+    {
+      pattern: /(bg|border|text)-(amber|blue|cyan|emerald|fuchsia|indigo|lime|orange|pink|purple|rose|sky|slate|teal|violet)-(50|100|200|500|700)/,
+    },
+    {
+      pattern: /bg-(amber|blue|cyan|emerald|fuchsia|indigo|lime|orange|pink|purple|rose|sky|slate|teal|violet)-50\/40/,
+    },
+  ],
   theme: {
     extend: {
       boxShadow: {

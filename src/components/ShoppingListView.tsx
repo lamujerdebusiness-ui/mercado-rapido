@@ -415,7 +415,7 @@ export function ShoppingListView({
                 categories={categories}
                 onCreateCategory={(category) => void addCategory(category)}
                 onChange={setBulkCategory}
-                className="h-12 min-w-0 rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                className="h-12 min-w-0 rounded-lg border border-slate-300 px-3 pl-8 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
               />
               <button
                 type="button"

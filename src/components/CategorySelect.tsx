@@ -1,6 +1,7 @@
 "use client";
 
 import type { Category } from "@/lib/types";
+import { getCategoryColor } from "@/lib/categoryColors";
 
 type CategorySelectProps = {
   value: Category;
@@ -37,23 +38,30 @@ export function CategorySelect({
   }
 
   const normalizedCategories = normalizeCategories(categories, value);
+  const selectedColor = getCategoryColor(value || "Outros");
 
   return (
-    <select
-      value={normalizedCategories.includes(value) ? value : ""}
-      onChange={(event) => handleChange(event.target.value)}
-      className={
-        className ??
-        "h-12 rounded-lg border border-slate-300 px-4 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-      }
-    >
-      {normalizedCategories.map((category) => (
-        <option key={category} value={category}>
-          {category}
-        </option>
-      ))}
-      <option value={NEW_CATEGORY_VALUE}>+ Nova categoria...</option>
-    </select>
+    <div className="relative min-w-0">
+      <span
+        className={`pointer-events-none absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ${selectedColor.accent}`}
+        aria-hidden="true"
+      />
+      <select
+        value={normalizedCategories.includes(value) ? value : ""}
+        onChange={(event) => handleChange(event.target.value)}
+        className={
+          className ??
+          "h-12 w-full rounded-lg border border-slate-300 px-4 pl-8 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+        }
+      >
+        {normalizedCategories.map((category) => (
+          <option key={category} value={category}>
+            {category}
+          </option>
+        ))}
+        <option value={NEW_CATEGORY_VALUE}>+ Nova categoria...</option>
+      </select>
+    </div>
   );
 }
 
