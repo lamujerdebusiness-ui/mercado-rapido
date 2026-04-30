@@ -9,6 +9,18 @@ create table if not exists public.shopping_lists (
   completed_at timestamptz,
   share_token uuid not null default gen_random_uuid(),
   share_enabled boolean not null default true,
+  category_order text[] not null default array[
+    'Hortifruti',
+    'Padaria',
+    'Carnes',
+    'Frios e Laticínios',
+    'Mercearia',
+    'Bebidas',
+    'Higiene',
+    'Limpeza',
+    'Pet',
+    'Outros'
+  ],
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

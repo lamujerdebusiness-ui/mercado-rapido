@@ -131,6 +131,7 @@ Cada usuário consegue selecionar, criar, editar e excluir as próprias listas e
 - Criar, renomear, duplicar, excluir e arquivar listas.
 - Compartilhar uma lista por link interno do app.
 - Adicionar itens com categoria, quantidade e preço estimado.
+- Criar categorias personalizadas e reorganizar a ordem das categorias por lista.
 - Importar itens de NFC-e pelo QR Code/link público da SEFAZ-RS/SVRS.
 - Marcar itens como comprados, editar, excluir e mover para cima/baixo.
 - Ver total estimado da lista e total já marcado como comprado.

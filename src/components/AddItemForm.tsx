@@ -2,7 +2,8 @@
 
 import { FormEvent, useRef, useState } from "react";
 import { Plus } from "lucide-react";
-import { CATEGORIES, DEFAULT_CATEGORY } from "@/lib/categories";
+import { CategorySelect } from "./CategorySelect";
+import { DEFAULT_CATEGORY } from "@/lib/categories";
 import {
   UNIT_OPTIONS,
   buildQuantity,
@@ -13,7 +14,9 @@ import {
 import type { Category } from "@/lib/types";
 
 type AddItemFormProps = {
+  categories: Category[];
   busy?: boolean;
+  onCreateCategory: (category: Category) => void;
   onAdd: (payload: {
     name: string;
     quantity: string | null;
@@ -22,7 +25,7 @@ type AddItemFormProps = {
   }) => Promise<void>;
 };
 
-export function AddItemForm({ busy, onAdd }: AddItemFormProps) {
+export function AddItemForm({ categories, busy, onCreateCategory, onAdd }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [quantityAmount, setQuantityAmount] = useState("");
   const [quantityUnit, setQuantityUnit] = useState("un");
@@ -125,20 +128,15 @@ export function AddItemForm({ busy, onAdd }: AddItemFormProps) {
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-        <select
+        <CategorySelect
           value={category}
-          onChange={(event) => {
-            setCategory(event.target.value as Category);
+          categories={categories}
+          onCreateCategory={onCreateCategory}
+          onChange={(nextCategory) => {
+            setCategory(nextCategory);
             setManualCategory(true);
           }}
-          className="h-12 rounded-lg border border-slate-300 px-4 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-        >
-          {CATEGORIES.map((itemCategory) => (
-            <option key={itemCategory} value={itemCategory}>
-              {itemCategory}
-            </option>
-          ))}
-        </select>
+        />
         <button
           type="submit"
           disabled={busy || !name.trim()}

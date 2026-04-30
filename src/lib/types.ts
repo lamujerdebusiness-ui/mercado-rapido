@@ -1,14 +1,4 @@
-export type Category =
-  | "Hortifruti"
-  | "Padaria"
-  | "Carnes"
-  | "Frios e Laticínios"
-  | "Mercearia"
-  | "Bebidas"
-  | "Higiene"
-  | "Limpeza"
-  | "Pet"
-  | "Outros";
+export type Category = string;
 
 export type ShoppingList = {
   id: string;
@@ -19,6 +9,7 @@ export type ShoppingList = {
   completed_at: string | null;
   share_token: string;
   share_enabled: boolean;
+  category_order: Category[];
   created_at: string;
   updated_at: string;
 };

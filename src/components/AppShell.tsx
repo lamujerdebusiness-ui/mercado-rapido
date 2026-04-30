@@ -239,6 +239,47 @@ export function AppShell({ session, shareToken }: AppShellProps) {
     setBusy(false);
   }
 
+  async function updateCategoryOrder(list: ShoppingList, categories: Category[]) {
+    if (!supabase) {
+      return;
+    }
+
+    const nextCategories = uniqueCategories(categories);
+    setError("");
+    setLists((current) =>
+      current.map((item) => (item.id === list.id ? { ...item, category_order: nextCategories } : item)),
+    );
+
+    const { data, error: updateError } = await supabase
+      .from("shopping_lists")
+      .update({ category_order: nextCategories })
+      .eq("id", list.id)
+      .select()
+      .single<ShoppingList>();
+
+    if (updateError || !data) {
+      setError(getSupabaseMessage(updateError, "Não foi possível salvar as categorias."));
+    } else {
+      setLists((current) => current.map((item) => (item.id === data.id ? data : item)));
+    }
+  }
+
+  async function ensureCategoriesInList(listId: string, categoriesToAdd: Category[]) {
+    const list = lists.find((item) => item.id === listId);
+    if (!list) {
+      return;
+    }
+
+    const currentCategories = list.category_order ?? [];
+    const nextCategories = uniqueCategories([...currentCategories, ...categoriesToAdd]);
+
+    if (nextCategories.length === currentCategories.length) {
+      return;
+    }
+
+    await updateCategoryOrder(list, nextCategories);
+  }
+
   async function deleteList(list: ShoppingList) {
     if (!supabase) {
       return;
@@ -278,6 +319,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
         name: `Cópia de ${list.name}`,
         user_id: user.id,
         position: getNextListPosition(lists),
+        category_order: list.category_order,
       })
       .select()
       .single<ShoppingList>();
@@ -358,6 +400,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
       setError(getSupabaseMessage(insertError, "Não foi possível salvar o item."));
     } else {
       setItems((current) => [...current, data]);
+      await ensureCategoriesInList(selectedListId, [payload.category]);
       await touchList(selectedListId);
     }
 
@@ -404,6 +447,10 @@ export function AppShell({ session, shareToken }: AppShellProps) {
       setError(getSupabaseMessage(insertError, "Não foi possível importar os itens da nota."));
     } else {
       setItems((current) => [...current, ...(data ?? [])]);
+      await ensureCategoriesInList(
+        selectedListId,
+        importedItems.map((item) => item.category),
+      );
       await touchList(selectedListId);
     }
 
@@ -457,6 +504,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
       setError(getSupabaseMessage(updateError, "Não foi possível editar o item."));
     } else {
       setItems((current) => current.map((row) => (row.id === data.id ? data : row)));
+      await ensureCategoriesInList(item.list_id, [payload.category]);
       await touchList(item.list_id);
     }
 
@@ -695,6 +743,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
           onArchiveList={(list, archived) => void archiveList(list, archived)}
           onFinishList={(list) => setConfirm({ type: "finish-list", list })}
           onShareList={(list) => void copyShareLink(list)}
+          onUpdateCategoryOrder={updateCategoryOrder}
           onImportInvoice={importInvoiceItems}
         />
       ) : (
@@ -764,4 +813,20 @@ function getNextListPosition(lists: ShoppingList[]) {
   }
 
   return Math.max(...lists.map((list) => list.position)) + 1;
+}
+
+function uniqueCategories(categories: Category[]) {
+  const seen = new Set<string>();
+
+  return categories.filter((category) => {
+    const trimmedCategory = category.trim();
+    const key = trimmedCategory.toLowerCase();
+
+    if (!trimmedCategory || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }

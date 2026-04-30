@@ -52,6 +52,7 @@ type ShoppingListViewProps = {
   onArchiveList: (list: ShoppingList, archived: boolean) => void;
   onFinishList: (list: ShoppingList) => void;
   onShareList: (list: ShoppingList) => void;
+  onUpdateCategoryOrder: (list: ShoppingList, categories: Category[]) => Promise<void>;
   onImportInvoice: (
     items: Array<{ name: string; quantity: string | null; category: Category; unit_price: number | null }>,
   ) => Promise<void>;
@@ -78,6 +79,7 @@ export function ShoppingListView({
   onArchiveList,
   onFinishList,
   onShareList,
+  onUpdateCategoryOrder,
   onImportInvoice,
 }: ShoppingListViewProps) {
   const [name, setName] = useState(list.name);
@@ -87,6 +89,7 @@ export function ShoppingListView({
   const stats = getListStats(items);
   const percent = getCompletionPercent(items);
   const sharingText = getSharingText(list, collaborators, currentUserId);
+  const categories = useMemo(() => getListCategories(list, items), [items, list]);
 
   useEffect(() => {
     setName(list.name);
@@ -94,11 +97,11 @@ export function ShoppingListView({
 
   const groupedItems = useMemo(
     () =>
-      CATEGORIES.map((category) => ({
+      categories.map((category) => ({
         category,
         items: sortItems(items.filter((item) => item.category === category)),
       })),
-    [items],
+    [categories, items],
   );
 
   async function saveName() {
@@ -128,8 +131,28 @@ export function ShoppingListView({
     setName(event.target.value);
   }
 
+  async function addCategory(category: Category) {
+    const nextCategories = appendCategory(categories, category);
+    if (nextCategories.length !== categories.length) {
+      await onUpdateCategoryOrder(list, nextCategories);
+    }
+  }
+
+  async function moveCategory(category: Category, direction: "up" | "down") {
+    const index = categories.findIndex((item) => item === category);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+
+    if (index < 0 || targetIndex < 0 || targetIndex >= categories.length) {
+      return;
+    }
+
+    const nextCategories = [...categories];
+    [nextCategories[index], nextCategories[targetIndex]] = [nextCategories[targetIndex], nextCategories[index]];
+    await onUpdateCategoryOrder(list, nextCategories);
+  }
+
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-5">
+    <section className="mx-auto w-full max-w-3xl overflow-x-hidden px-4 py-5">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
@@ -201,7 +224,7 @@ export function ShoppingListView({
       ) : null}
 
       <div className="mt-4">
-        <AddItemForm busy={busy} onAdd={onAddItem} />
+        <AddItemForm categories={categories} busy={busy} onCreateCategory={(category) => void addCategory(category)} onAdd={onAddItem} />
       </div>
 
       <div className="relative mt-3 flex justify-end">
@@ -291,13 +314,18 @@ export function ShoppingListView({
           />
         </div>
       ) : (
-        <div className="mt-4 grid gap-4">
-          {groupedItems.map(({ category, items: categoryItems }) => (
+        <div className="mt-4 grid min-w-0 gap-4">
+          {groupedItems.map(({ category, items: categoryItems }, index) => (
             <CategorySection
               key={category}
               category={category}
+              categories={categories}
               items={categoryItems}
+              first={index === 0}
+              last={index === groupedItems.length - 1}
               busy={busy}
+              onMoveCategory={(itemCategory, direction) => void moveCategory(itemCategory, direction)}
+              onCreateCategory={(itemCategory) => void addCategory(itemCategory)}
               onToggle={onToggleItem}
               onDelete={onDeleteItem}
               onMove={onMoveItem}
@@ -379,4 +407,29 @@ function formatNames(collaborators: ShoppingListCollaborator[]) {
   }
 
   return visibleNames;
+}
+
+function getListCategories(list: ShoppingList, items: ShoppingItem[]) {
+  const itemCategories = items.map((item) => item.category);
+  return uniqueCategories([...(list.category_order ?? CATEGORIES), ...itemCategories, "Outros"]);
+}
+
+function appendCategory(categories: Category[], category: Category) {
+  return uniqueCategories([...categories, category]);
+}
+
+function uniqueCategories(categories: Category[]) {
+  const seen = new Set<string>();
+
+  return categories.filter((category) => {
+    const trimmedCategory = category.trim();
+    const key = trimmedCategory.toLowerCase();
+
+    if (!trimmedCategory || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }

@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { Check, ChevronDown, ChevronUp, Pencil, Save, Trash2, X } from "lucide-react";
-import { CATEGORIES } from "@/lib/categories";
+import { CategorySelect } from "./CategorySelect";
 import {
   UNIT_OPTIONS,
   buildQuantity,
@@ -17,12 +17,14 @@ import { formatCurrency, getItemTotal } from "@/lib/utils";
 
 type ShoppingItemRowProps = {
   item: ShoppingItem;
+  categories: Category[];
   first: boolean;
   last: boolean;
   busy?: boolean;
   onToggle: (item: ShoppingItem) => void;
   onDelete: (item: ShoppingItem) => void;
   onMove: (item: ShoppingItem, direction: "up" | "down") => void;
+  onCreateCategory: (category: Category) => void;
   onEdit: (
     item: ShoppingItem,
     payload: { name: string; quantity: string | null; category: Category; unit_price: number | null },
@@ -31,12 +33,14 @@ type ShoppingItemRowProps = {
 
 export function ShoppingItemRow({
   item,
+  categories,
   first,
   last,
   busy,
   onToggle,
   onDelete,
   onMove,
+  onCreateCategory,
   onEdit,
 }: ShoppingItemRowProps) {
   const initialQuantity = parseQuantity(item.quantity);
@@ -96,7 +100,7 @@ export function ShoppingItemRow({
 
   if (editing) {
     return (
-      <form onSubmit={submit} className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+      <form onSubmit={submit} className="w-full min-w-0 rounded-lg border border-emerald-100 bg-emerald-50 p-3">
         <input
           value={name}
           onChange={(event) => handleNameChange(event.target.value)}
@@ -141,20 +145,16 @@ export function ShoppingItemRow({
           ))}
         </div>
         <div className="mt-2">
-          <select
+          <CategorySelect
             value={category}
-            onChange={(event) => {
-              setCategory(event.target.value as Category);
+            categories={categories}
+            onCreateCategory={onCreateCategory}
+            onChange={(nextCategory) => {
+              setCategory(nextCategory);
               setManualCategory(true);
             }}
             className="h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-          >
-            {CATEGORIES.map((itemCategory) => (
-              <option key={itemCategory} value={itemCategory}>
-                {itemCategory}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
@@ -179,7 +179,7 @@ export function ShoppingItemRow({
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white p-2">
+    <div className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-slate-100 bg-white p-2">
       <button
         type="button"
         onClick={() => onToggle(item)}
@@ -198,7 +198,7 @@ export function ShoppingItemRow({
         <Check size={20} aria-hidden="true" />
       </button>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0">
         <p
           className={`truncate text-base font-medium ${
             item.purchased ? "text-slate-400 line-through" : "text-slate-950"
@@ -218,12 +218,12 @@ export function ShoppingItemRow({
         ) : null}
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="grid shrink-0 grid-cols-2 gap-1">
         <button
           type="button"
           onClick={() => onMove(item, "up")}
           disabled={busy || first}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30"
           aria-label={`Subir ${item.name}`}
           title="Subir"
         >
@@ -233,7 +233,7 @@ export function ShoppingItemRow({
           type="button"
           onClick={() => onMove(item, "down")}
           disabled={busy || last}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30"
           aria-label={`Descer ${item.name}`}
           title="Descer"
         >
@@ -243,7 +243,7 @@ export function ShoppingItemRow({
           type="button"
           onClick={() => setEditing(true)}
           disabled={busy}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-40"
           aria-label={`Editar ${item.name}`}
           title="Editar"
         >
@@ -253,7 +253,7 @@ export function ShoppingItemRow({
           type="button"
           onClick={() => onDelete(item)}
           disabled={busy}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-40"
           aria-label={`Excluir ${item.name}`}
           title="Excluir"
         >
