@@ -9,4 +9,11 @@ export const supabaseEnvError =
     : "";
 
 export const supabase =
-  supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          flowType: "pkce",
+          detectSessionInUrl: false,
+        },
+      })
+    : null;

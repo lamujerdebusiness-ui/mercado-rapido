@@ -17,10 +17,25 @@ export default function Home() {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
+    async function loadSession() {
+      if (!supabase) {
+        return;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+
+      if (code) {
+        await supabase.auth.exchangeCodeForSession(code);
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+
+      const { data } = await supabase.auth.getSession();
       setSession(data.session);
       setLoading(false);
-    });
+    }
+
+    void loadSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
