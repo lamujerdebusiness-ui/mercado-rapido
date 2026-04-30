@@ -74,6 +74,28 @@ Authentication > Providers > Email > desativar confirmação de email.
 
 Não automatize isso no código. Essa é uma configuração do projeto Supabase.
 
+## Login com Google
+
+O botão "Continue with Google" usa Supabase Auth OAuth. Para funcionar em produção:
+
+1. No Google Cloud Console, crie credenciais OAuth Client ID do tipo Web application.
+2. Adicione o redirect URI autorizado:
+
+```txt
+https://SEU_PROJECT_REF.supabase.co/auth/v1/callback
+```
+
+3. No Supabase, vá em Authentication > Providers > Google.
+4. Ative o provider Google.
+5. Cole o Client ID e o Client Secret do Google.
+6. Salve.
+
+No projeto cloud criado para este app, o redirect URI é:
+
+```txt
+https://wnpdnkvsyhxdtqpbweue.supabase.co/auth/v1/callback
+```
+
 ## Deploy na Vercel
 
 1. Crie um repositório no GitHub.
