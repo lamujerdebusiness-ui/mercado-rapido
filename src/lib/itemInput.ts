@@ -150,6 +150,21 @@ export function parseQuantity(value: string | null | undefined) {
   return { amount: trimmedValue, unit: "" };
 }
 
+export function getQuantityMultiplier(value: string | null | undefined) {
+  const { amount, unit } = parseQuantity(value);
+  const normalizedAmount = Number(amount.replace(/\./g, "").replace(",", "."));
+
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    return 1;
+  }
+
+  if (unit === "g" || unit === "ml") {
+    return normalizedAmount / 1000;
+  }
+
+  return normalizedAmount;
+}
+
 function findCategory(normalizedName: string): Category {
   const match = CATEGORY_KEYWORDS.find(({ words }) =>
     words.some((word) => includesWord(normalizedName, word)),

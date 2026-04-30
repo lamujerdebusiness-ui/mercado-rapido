@@ -1,12 +1,14 @@
 "use client";
 
 import { ChangeEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Archive,
   ArchiveRestore,
   ArrowLeft,
   CheckCircle2,
   Copy,
+  MoreHorizontal,
   RotateCcw,
   Share2,
   Trash2,
@@ -74,6 +76,7 @@ export function ShoppingListView({
 }: ShoppingListViewProps) {
   const [name, setName] = useState(list.name);
   const [renaming, setRenaming] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const stats = getListStats(items);
   const percent = getCompletionPercent(items);
   const sharingText = getSharingText(list, collaborators, currentUserId);
@@ -194,52 +197,74 @@ export function ShoppingListView({
         <AddItemForm busy={busy} onAdd={onAddItem} />
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="relative mt-3 flex justify-end">
         <button
           type="button"
-          onClick={() => onShareList(list)}
-          disabled={busy}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+          onClick={() => setActionsOpen((current) => !current)}
+          className="inline-flex min-h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+          aria-label="Ações da lista"
+          aria-expanded={actionsOpen}
         >
-          <Share2 size={17} aria-hidden="true" />
-          Copiar link familiar
+          <MoreHorizontal size={20} aria-hidden="true" />
         </button>
-        <button
-          type="button"
-          onClick={() => onFinishList(list)}
-          disabled={busy || items.length === 0 || list.completed_at !== null}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-100 bg-white px-4 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 disabled:opacity-50"
-        >
-          <CheckCircle2 size={17} aria-hidden="true" />
-          Finalizar compra
-        </button>
-        <button
-          type="button"
-          onClick={onUncheckAll}
-          disabled={busy || items.length === 0 || stats.purchased === 0}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RotateCcw size={17} aria-hidden="true" />
-          Desmarcar todos
-        </button>
-        <button
-          type="button"
-          onClick={onClearPurchased}
-          disabled={busy || stats.purchased === 0}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white px-4 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 disabled:opacity-50"
-        >
-          <Trash2 size={17} aria-hidden="true" />
-          Remover comprados
-        </button>
-        <button
-          type="button"
-          onClick={() => onArchiveList(list, !list.archived)}
-          disabled={busy || list.completed_at !== null}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-        >
-          {list.archived ? <ArchiveRestore size={17} aria-hidden="true" /> : <Archive size={17} aria-hidden="true" />}
-          {list.archived ? "Reativar lista" : "Arquivar lista"}
-        </button>
+
+        {actionsOpen ? (
+          <div className="absolute right-0 top-12 z-10 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+            <ListActionButton
+              icon={<Share2 size={17} aria-hidden="true" />}
+              label="Copiar link familiar"
+              disabled={busy}
+              onClick={() => {
+                setActionsOpen(false);
+                onShareList(list);
+              }}
+            />
+            <ListActionButton
+              icon={<CheckCircle2 size={17} aria-hidden="true" />}
+              label="Finalizar compra"
+              disabled={busy || items.length === 0 || list.completed_at !== null}
+              className="text-emerald-700 hover:bg-emerald-50"
+              onClick={() => {
+                setActionsOpen(false);
+                onFinishList(list);
+              }}
+            />
+            <ListActionButton
+              icon={<RotateCcw size={17} aria-hidden="true" />}
+              label="Desmarcar todos"
+              disabled={busy || items.length === 0 || stats.purchased === 0}
+              onClick={() => {
+                setActionsOpen(false);
+                onUncheckAll();
+              }}
+            />
+            <ListActionButton
+              icon={<Trash2 size={17} aria-hidden="true" />}
+              label="Remover comprados"
+              disabled={busy || stats.purchased === 0}
+              className="text-red-600 hover:bg-red-50"
+              onClick={() => {
+                setActionsOpen(false);
+                onClearPurchased();
+              }}
+            />
+            <ListActionButton
+              icon={
+                list.archived ? (
+                  <ArchiveRestore size={17} aria-hidden="true" />
+                ) : (
+                  <Archive size={17} aria-hidden="true" />
+                )
+              }
+              label={list.archived ? "Reativar lista" : "Arquivar lista"}
+              disabled={busy || list.completed_at !== null}
+              onClick={() => {
+                setActionsOpen(false);
+                onArchiveList(list, !list.archived);
+              }}
+            />
+          </div>
+        ) : null}
       </div>
 
       {items.length === 0 ? (
@@ -275,6 +300,32 @@ function SummaryTile({ label, value }: { label: string; value: number | string }
       <p className="text-xl font-bold text-slate-950">{value}</p>
       <p className="text-xs font-medium text-slate-500">{label}</p>
     </div>
+  );
+}
+
+function ListActionButton({
+  icon,
+  label,
+  disabled,
+  className = "text-slate-700 hover:bg-slate-50",
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  disabled?: boolean;
+  className?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold disabled:opacity-40 ${className}`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 

@@ -1,4 +1,5 @@
 import type { ListStats, ShoppingItem } from "./types";
+import { getQuantityMultiplier } from "./itemInput";
 
 export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -11,9 +12,9 @@ export function formatDateTime(value: string) {
 
 export function getListStats(items: ShoppingItem[]): ListStats {
   const purchased = items.filter((item) => item.purchased).length;
-  const estimatedTotal = items.reduce((total, item) => total + Number(item.unit_price ?? 0), 0);
+  const estimatedTotal = items.reduce((total, item) => total + getItemTotal(item), 0);
   const purchasedTotal = items.reduce(
-    (total, item) => total + (item.purchased ? Number(item.unit_price ?? 0) : 0),
+    (total, item) => total + (item.purchased ? getItemTotal(item) : 0),
     0,
   );
 
@@ -24,6 +25,10 @@ export function getListStats(items: ShoppingItem[]): ListStats {
     estimatedTotal,
     purchasedTotal,
   };
+}
+
+export function getItemTotal(item: ShoppingItem) {
+  return Number(item.unit_price ?? 0) * getQuantityMultiplier(item.quantity);
 }
 
 export function formatCurrency(value: number | null | undefined) {

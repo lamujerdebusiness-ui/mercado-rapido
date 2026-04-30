@@ -13,7 +13,7 @@ import {
   suggestItemDefaults,
 } from "@/lib/itemInput";
 import type { Category, ShoppingItem } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getItemTotal } from "@/lib/utils";
 
 type ShoppingItemRowProps = {
   item: ShoppingItem;
@@ -49,6 +49,7 @@ export function ShoppingItemRow({
   const [manualCategory, setManualCategory] = useState(false);
   const [manualUnit, setManualUnit] = useState(false);
   const [saving, setSaving] = useState(false);
+  const itemTotal = getItemTotal(item);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -212,7 +213,7 @@ export function ShoppingItemRow({
         ) : null}
         {item.unit_price !== null ? (
           <p className={`truncate text-sm font-semibold ${item.purchased ? "text-slate-400" : "text-emerald-700"}`}>
-            {formatCurrency(item.unit_price)}
+            {formatCurrency(item.unit_price)} · Total {formatCurrency(itemTotal)}
           </p>
         ) : null}
       </div>
