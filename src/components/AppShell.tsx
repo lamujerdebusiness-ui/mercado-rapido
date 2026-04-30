@@ -613,6 +613,84 @@ export function AppShell({ session, shareToken }: AppShellProps) {
     setBusy(false);
   }
 
+  async function bulkCreateListFromItems(targetItems: ShoppingItem[], name: string) {
+    if (!supabase || targetItems.length === 0) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    const sourceList = lists.find((list) => list.id === targetItems[0].list_id);
+    const categoryOrder = sourceList?.category_order ?? uniqueCategories(targetItems.map((item) => item.category));
+
+    const { data: newList, error: listError } = await supabase
+      .from("shopping_lists")
+      .insert({
+        name,
+        user_id: user.id,
+        position: getNextListPosition(lists),
+        category_order: categoryOrder,
+      })
+      .select()
+      .single<ShoppingList>();
+
+    if (listError || !newList) {
+      setError(getSupabaseMessage(listError, "Não foi possível criar a nova lista."));
+      setBusy(false);
+      return;
+    }
+
+    const { data: insertedItems, error: itemsError } = await supabase
+      .from("shopping_items")
+      .insert(
+        targetItems.map((item, index) => ({
+          list_id: newList.id,
+          user_id: user.id,
+          name: item.name,
+          category: item.category,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          purchased: false,
+          position: index,
+        })),
+      )
+      .select()
+      .returns<ShoppingItem[]>();
+
+    if (itemsError) {
+      setError(getSupabaseMessage(itemsError, "A lista foi criada, mas não consegui copiar os itens."));
+    }
+
+    setLists((current) => [newList, ...current]);
+    setItems((current) => [...current, ...(insertedItems ?? [])]);
+    setSelectedListId(newList.id);
+    setBusy(false);
+  }
+
+  async function bulkDeleteItems(targetItems: ShoppingItem[]) {
+    if (!supabase || targetItems.length === 0) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    const itemIds = targetItems.map((item) => item.id);
+    const listId = targetItems[0].list_id;
+    const { error: deleteError } = await supabase.from("shopping_items").delete().in("id", itemIds);
+
+    if (deleteError) {
+      setError(getSupabaseMessage(deleteError, "Não foi possível excluir os itens selecionados."));
+    } else {
+      const deletedIds = new Set(itemIds);
+      setItems((current) => current.filter((item) => !deletedIds.has(item.id)));
+      await touchList(listId);
+    }
+
+    setBusy(false);
+  }
+
   async function deleteItem(item: ShoppingItem) {
     if (!supabase) {
       return;
@@ -841,6 +919,8 @@ export function AppShell({ session, shareToken }: AppShellProps) {
           onMoveItem={(item, direction) => void moveItem(item, direction)}
           onBulkMoveItems={bulkMoveItems}
           onBulkTransferItems={bulkTransferItems}
+          onBulkCreateList={bulkCreateListFromItems}
+          onBulkDeleteItems={bulkDeleteItems}
           onClearPurchased={() => setConfirm({ type: "clear-purchased", list: selectedList })}
           onUncheckAll={() => void uncheckAll()}
           onDuplicateList={(list) => void duplicateList(list)}

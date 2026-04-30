@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Copy,
   Files,
+  ListPlus,
   MoreHorizontal,
   QrCode,
   RotateCcw,
@@ -51,6 +52,8 @@ type ShoppingListViewProps = {
   onMoveItem: (item: ShoppingItem, direction: "up" | "down") => void;
   onBulkMoveItems: (items: ShoppingItem[], category: Category) => Promise<void>;
   onBulkTransferItems: (items: ShoppingItem[], targetList: ShoppingList, mode: "copy" | "move") => Promise<void>;
+  onBulkCreateList: (items: ShoppingItem[], name: string) => Promise<void>;
+  onBulkDeleteItems: (items: ShoppingItem[]) => Promise<void>;
   onClearPurchased: () => void;
   onUncheckAll: () => void;
   onDuplicateList: (list: ShoppingList) => void;
@@ -81,6 +84,8 @@ export function ShoppingListView({
   onMoveItem,
   onBulkMoveItems,
   onBulkTransferItems,
+  onBulkCreateList,
+  onBulkDeleteItems,
   onClearPurchased,
   onUncheckAll,
   onDuplicateList,
@@ -222,6 +227,43 @@ export function ShoppingListView({
 
     setBulkSaving(true);
     await onBulkTransferItems(selectedItems, targetList, mode);
+    setBulkSaving(false);
+    clearSelection();
+  }
+
+  async function createListFromSelectedItems() {
+    if (selectedItems.length === 0) {
+      return;
+    }
+
+    const name = window.prompt("Nome da nova lista", `Selecionados de ${list.name}`);
+    const trimmedName = name?.trim();
+
+    if (!trimmedName) {
+      return;
+    }
+
+    setBulkSaving(true);
+    await onBulkCreateList(selectedItems, trimmedName);
+    setBulkSaving(false);
+    clearSelection();
+  }
+
+  async function deleteSelectedItems() {
+    if (selectedItems.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Excluir ${selectedItems.length} ${selectedItems.length === 1 ? "item selecionado" : "itens selecionados"}? Essa ação não pode ser desfeita.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setBulkSaving(true);
+    await onBulkDeleteItems(selectedItems);
     setBulkSaving(false);
     clearSelection();
   }
@@ -389,7 +431,7 @@ export function ShoppingListView({
           />
         </div>
       ) : (
-        <div className={`mt-4 grid min-w-0 gap-4 ${selectionMode ? "pb-72" : ""}`}>
+        <div className={`mt-4 grid min-w-0 gap-4 ${selectionMode ? "pb-96" : ""}`}>
           {groupedItems.map(({ category, items: categoryItems }, index) => (
             <CategorySection
               key={category}
@@ -490,6 +532,26 @@ export function ShoppingListView({
                 </div>
               </div>
             ) : null}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => void createListFromSelectedItems()}
+                disabled={busy || bulkSaving}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-60"
+              >
+                <ListPlus size={17} aria-hidden="true" />
+                Nova lista
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteSelectedItems()}
+                disabled={busy || bulkSaving}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white px-3 text-sm font-semibold text-red-600 disabled:opacity-60"
+              >
+                <Trash2 size={17} aria-hidden="true" />
+                Excluir
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
