@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Camera, FileDown, Link, Loader2, X } from "lucide-react";
 import type { Category } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import { getQuantityMultiplier } from "@/lib/itemInput";
 import type { IScannerControls } from "@zxing/browser";
 
 type ImportedInvoiceItem = {
@@ -214,7 +215,8 @@ export function InvoiceImport({ open, busy, onClose, onImport }: InvoiceImportPr
                 <div key={`${item.name}-${index}`} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                   <p className="text-sm font-semibold text-slate-950">{item.name}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {item.quantity ?? "1 un"} · {item.category} · {formatCurrency(item.unit_price)}
+                    {item.quantity ?? "1 un"} · {item.category} · {formatCurrency(item.unit_price)} · Total{" "}
+                    {formatCurrency(Number(item.unit_price ?? 0) * getQuantityMultiplier(item.quantity))}
                   </p>
                 </div>
               ))}

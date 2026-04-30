@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { suggestItemDefaults } from "@/lib/itemInput";
+import { normalizeUnit, suggestItemDefaults } from "@/lib/itemInput";
 
 type ImportedInvoiceItem = {
   name: string;
@@ -199,40 +199,6 @@ function normalizeQuantity(quantity: string | null, unit: string | null) {
   return cleanUnit ? `${cleanQuantity} ${cleanUnit}` : cleanQuantity;
 }
 
-function normalizeUnit(value: string) {
-  const normalized = value.trim().toLowerCase();
-  const normalizedAscii = normalized
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-  const aliases: Record<string, string> = {
-    unidade: "un",
-    unid: "un",
-    und: "un",
-    un: "un",
-    kg: "kg",
-    kilo: "kg",
-    quilo: "kg",
-    g: "g",
-    gr: "g",
-    l: "l",
-    lt: "l",
-    litro: "l",
-    ml: "ml",
-    pct: "pct",
-    pacote: "pct",
-    garrafa: "gar",
-    gar: "gar",
-    caixa: "cx",
-    cx: "cx",
-    saco: "sc",
-    sc: "sc",
-    dz: "dz",
-  };
-
-  return aliases[normalizedAscii] ?? normalizedAscii.slice(0, 8);
-}
-
 function parseBrazilianMoney(value: string | null) {
   if (!value) {
     return null;
@@ -262,7 +228,8 @@ function calculateUnitPrice(totalPrice: number | null, quantity: number | null) 
 }
 
 function normalizeNumberText(value: string) {
-  const parsed = parseBrazilianNumber(value);
+  const numberText = value.match(/-?\d{1,3}(?:\.\d{3})*(?:,\d{1,4})?|-?\d+(?:,\d{1,4})?/)?.[0] ?? "";
+  const parsed = parseBrazilianNumber(numberText);
 
   if (parsed === null) {
     return "";

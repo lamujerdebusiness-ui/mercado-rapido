@@ -1,6 +1,6 @@
 import type { Category } from "./types";
 
-export const UNIT_OPTIONS = ["kg", "g", "l", "ml", "m", "pct", "gar", "cx", "sc", "un", "dz", "fd"];
+export const UNIT_OPTIONS = ["kg", "g", "l", "ml", "m", "pct", "bdj", "gar", "cx", "sc", "un", "dz", "fd"];
 
 type ItemDefaults = {
   category: Category;
@@ -138,7 +138,7 @@ export function parseQuantity(value: string | null | undefined) {
   }
 
   const parts = trimmedValue.split(/\s+/);
-  const possibleUnit = parts.at(-1)?.toLowerCase() ?? "";
+  const possibleUnit = normalizeUnit(parts.at(-1) ?? "");
 
   if (UNIT_OPTIONS.includes(possibleUnit) && parts.length > 1) {
     return {
@@ -163,6 +163,48 @@ export function getQuantityMultiplier(value: string | null | undefined) {
   }
 
   return normalizedAmount;
+}
+
+export function normalizeUnit(value: string | null | undefined) {
+  const normalizedAscii =
+    value
+      ?.trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\d+$/g, "") ?? "";
+
+  const aliases: Record<string, string> = {
+    bandeja: "bdj",
+    bdj: "bdj",
+    caixa: "cx",
+    cx: "cx",
+    dz: "dz",
+    fd: "fd",
+    fardo: "fd",
+    gar: "gar",
+    garrafa: "gar",
+    gr: "g",
+    g: "g",
+    kg: "kg",
+    kilo: "kg",
+    quilo: "kg",
+    l: "l",
+    litro: "l",
+    lt: "l",
+    m: "m",
+    ml: "ml",
+    pacote: "pct",
+    pct: "pct",
+    saco: "sc",
+    sc: "sc",
+    un: "un",
+    und: "un",
+    unid: "un",
+    unidade: "un",
+  };
+
+  return aliases[normalizedAscii] ?? normalizedAscii.slice(0, 8);
 }
 
 function findCategory(normalizedName: string): Category {
