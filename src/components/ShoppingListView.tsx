@@ -11,12 +11,14 @@ import {
   MoreHorizontal,
   QrCode,
   RotateCcw,
+  Tags,
   Share2,
   Trash2,
   UsersRound,
 } from "lucide-react";
 import { AddItemForm } from "./AddItemForm";
 import { CategorySection } from "./CategorySection";
+import { CategorySelect } from "./CategorySelect";
 import { EmptyState } from "./EmptyState";
 import { InvoiceImport } from "./InvoiceImport";
 import { CATEGORIES } from "@/lib/categories";
@@ -45,6 +47,7 @@ type ShoppingListViewProps = {
   ) => Promise<void>;
   onDeleteItem: (item: ShoppingItem) => void;
   onMoveItem: (item: ShoppingItem, direction: "up" | "down") => void;
+  onBulkMoveItems: (items: ShoppingItem[], category: Category) => Promise<void>;
   onClearPurchased: () => void;
   onUncheckAll: () => void;
   onDuplicateList: (list: ShoppingList) => void;
@@ -72,6 +75,7 @@ export function ShoppingListView({
   onEditItem,
   onDeleteItem,
   onMoveItem,
+  onBulkMoveItems,
   onClearPurchased,
   onUncheckAll,
   onDuplicateList,
@@ -86,10 +90,18 @@ export function ShoppingListView({
   const [renaming, setRenaming] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [bulkCategory, setBulkCategory] = useState<Category>("Outros");
+  const [bulkSaving, setBulkSaving] = useState(false);
   const stats = getListStats(items);
   const percent = getCompletionPercent(items);
   const sharingText = getSharingText(list, collaborators, currentUserId);
   const categories = useMemo(() => getListCategories(list, items), [items, list]);
+  const selectedItems = useMemo(
+    () => items.filter((item) => selectedItemIds.has(item.id)),
+    [items, selectedItemIds],
+  );
+  const selectionMode = selectedItemIds.size > 0;
 
   useEffect(() => {
     setName(list.name);
@@ -149,6 +161,42 @@ export function ShoppingListView({
     const nextCategories = [...categories];
     [nextCategories[index], nextCategories[targetIndex]] = [nextCategories[targetIndex], nextCategories[index]];
     await onUpdateCategoryOrder(list, nextCategories);
+  }
+
+  function startSelection(item: ShoppingItem) {
+    setSelectedItemIds(new Set([item.id]));
+    setBulkCategory(item.category);
+  }
+
+  function toggleSelection(item: ShoppingItem) {
+    setSelectedItemIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(item.id)) {
+        next.delete(item.id);
+      } else {
+        next.add(item.id);
+      }
+
+      return next;
+    });
+    setBulkCategory(item.category);
+  }
+
+  function clearSelection() {
+    setSelectedItemIds(new Set());
+  }
+
+  async function moveSelectedItems() {
+    if (selectedItems.length === 0) {
+      return;
+    }
+
+    setBulkSaving(true);
+    await addCategory(bulkCategory);
+    await onBulkMoveItems(selectedItems, bulkCategory);
+    setBulkSaving(false);
+    clearSelection();
   }
 
   return (
@@ -314,7 +362,7 @@ export function ShoppingListView({
           />
         </div>
       ) : (
-        <div className="mt-4 grid min-w-0 gap-4">
+        <div className={`mt-4 grid min-w-0 gap-4 ${selectionMode ? "pb-28" : ""}`}>
           {groupedItems.map(({ category, items: categoryItems }, index) => (
             <CategorySection
               key={category}
@@ -324,9 +372,13 @@ export function ShoppingListView({
               first={index === 0}
               last={index === groupedItems.length - 1}
               busy={busy}
+              selectedItemIds={selectedItemIds}
+              selectionMode={selectionMode}
               onMoveCategory={(itemCategory, direction) => void moveCategory(itemCategory, direction)}
               onCreateCategory={(itemCategory) => void addCategory(itemCategory)}
               onToggle={onToggleItem}
+              onToggleSelection={toggleSelection}
+              onStartSelection={startSelection}
               onDelete={onDeleteItem}
               onMove={onMoveItem}
               onEdit={onEditItem}
@@ -341,6 +393,43 @@ export function ShoppingListView({
         onClose={() => setImportOpen(false)}
         onImport={onImportInvoice}
       />
+
+      {selectionMode ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_28px_rgba(15,23,42,0.12)] backdrop-blur">
+          <div className="mx-auto grid max-w-3xl gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-700">
+                {selectedItemIds.size} {selectedItemIds.size === 1 ? "item selecionado" : "itens selecionados"}
+              </p>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="min-h-10 rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
+            </div>
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <CategorySelect
+                value={bulkCategory}
+                categories={categories}
+                onCreateCategory={(category) => void addCategory(category)}
+                onChange={setBulkCategory}
+                className="h-12 min-w-0 rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+              <button
+                type="button"
+                onClick={() => void moveSelectedItems()}
+                disabled={busy || bulkSaving}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                <Tags size={17} aria-hidden="true" />
+                Mover
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

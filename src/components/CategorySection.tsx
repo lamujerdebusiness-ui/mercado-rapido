@@ -11,8 +11,12 @@ type CategorySectionProps = {
   first: boolean;
   last: boolean;
   busy?: boolean;
+  selectedItemIds: Set<string>;
+  selectionMode: boolean;
   onMoveCategory: (category: Category, direction: "up" | "down") => void;
   onToggle: (item: ShoppingItem) => void;
+  onToggleSelection: (item: ShoppingItem) => void;
+  onStartSelection: (item: ShoppingItem) => void;
   onDelete: (item: ShoppingItem) => void;
   onMove: (item: ShoppingItem, direction: "up" | "down") => void;
   onCreateCategory: (category: Category) => void;
@@ -29,8 +33,12 @@ export function CategorySection({
   first,
   last,
   busy,
+  selectedItemIds,
+  selectionMode,
   onMoveCategory,
   onToggle,
+  onToggleSelection,
+  onStartSelection,
   onDelete,
   onMove,
   onCreateCategory,
@@ -79,8 +87,12 @@ export function CategorySection({
             first={index === 0}
             last={index === items.length - 1}
             busy={busy}
+            selected={selectedItemIds.has(item.id)}
+            selectionMode={selectionMode}
             onCreateCategory={onCreateCategory}
             onToggle={onToggle}
+            onToggleSelection={onToggleSelection}
+            onStartSelection={onStartSelection}
             onDelete={onDelete}
             onMove={onMove}
             onEdit={onEdit}

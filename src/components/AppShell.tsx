@@ -511,6 +511,38 @@ export function AppShell({ session, shareToken }: AppShellProps) {
     setBusy(false);
   }
 
+  async function bulkMoveItems(targetItems: ShoppingItem[], category: Category) {
+    if (!supabase || targetItems.length === 0) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    const itemIds = targetItems.map((item) => item.id);
+    const listId = targetItems[0].list_id;
+
+    const { data, error: updateError } = await supabase
+      .from("shopping_items")
+      .update({ category })
+      .in("id", itemIds)
+      .select()
+      .returns<ShoppingItem[]>();
+
+    if (updateError) {
+      setError(getSupabaseMessage(updateError, "Não foi possível mover os itens selecionados."));
+    } else {
+      const updatedItems = data ?? [];
+      setItems((current) =>
+        current.map((item) => updatedItems.find((updatedItem) => updatedItem.id === item.id) ?? item),
+      );
+      await ensureCategoriesInList(listId, [category]);
+      await touchList(listId);
+    }
+
+    setBusy(false);
+  }
+
   async function deleteItem(item: ShoppingItem) {
     if (!supabase) {
       return;
@@ -736,6 +768,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
           onEditItem={editItem}
           onDeleteItem={(item) => void deleteItem(item)}
           onMoveItem={(item, direction) => void moveItem(item, direction)}
+          onBulkMoveItems={bulkMoveItems}
           onClearPurchased={() => setConfirm({ type: "clear-purchased", list: selectedList })}
           onUncheckAll={() => void uncheckAll()}
           onDuplicateList={(list) => void duplicateList(list)}

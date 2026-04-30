@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, PointerEvent, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, Pencil, Save, Trash2, X } from "lucide-react";
 import { CategorySelect } from "./CategorySelect";
 import {
@@ -21,7 +21,11 @@ type ShoppingItemRowProps = {
   first: boolean;
   last: boolean;
   busy?: boolean;
+  selectionMode: boolean;
+  selected: boolean;
   onToggle: (item: ShoppingItem) => void;
+  onToggleSelection: (item: ShoppingItem) => void;
+  onStartSelection: (item: ShoppingItem) => void;
   onDelete: (item: ShoppingItem) => void;
   onMove: (item: ShoppingItem, direction: "up" | "down") => void;
   onCreateCategory: (category: Category) => void;
@@ -37,7 +41,11 @@ export function ShoppingItemRow({
   first,
   last,
   busy,
+  selectionMode,
+  selected,
   onToggle,
+  onToggleSelection,
+  onStartSelection,
   onDelete,
   onMove,
   onCreateCategory,
@@ -53,6 +61,7 @@ export function ShoppingItemRow({
   const [manualCategory, setManualCategory] = useState(false);
   const [manualUnit, setManualUnit] = useState(false);
   const [saving, setSaving] = useState(false);
+  const longPressTimerRef = useRef<number | null>(null);
   const itemTotal = getItemTotal(item);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -96,6 +105,36 @@ export function ShoppingItemRow({
     setManualCategory(false);
     setManualUnit(false);
     setEditing(false);
+  }
+
+  function startLongPress() {
+    if (busy || editing) {
+      return;
+    }
+
+    clearLongPress();
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTimerRef.current = null;
+      onStartSelection(item);
+    }, 550);
+  }
+
+  function clearLongPress() {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  function handleRowClick() {
+    if (selectionMode) {
+      onToggleSelection(item);
+    }
+  }
+
+  function stopInteractivePointer(event: PointerEvent<HTMLElement>) {
+    event.stopPropagation();
+    clearLongPress();
   }
 
   if (editing) {
@@ -179,13 +218,27 @@ export function ShoppingItemRow({
   }
 
   return (
-    <div className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-slate-100 bg-white p-2">
+    <div
+      role={selectionMode ? "button" : undefined}
+      tabIndex={selectionMode ? 0 : undefined}
+      onClick={handleRowClick}
+      onPointerDown={startLongPress}
+      onPointerUp={clearLongPress}
+      onPointerCancel={clearLongPress}
+      onPointerLeave={clearLongPress}
+      className={`grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border p-2 transition ${
+        selected ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-100 bg-white"
+      }`}
+    >
       <button
         type="button"
-        onClick={() => onToggle(item)}
+        onPointerDown={stopInteractivePointer}
+        onClick={() => (selectionMode ? onToggleSelection(item) : onToggle(item))}
         disabled={busy}
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border text-white ${
-          item.purchased
+          selected
+            ? "border-emerald-700 bg-emerald-700"
+            : item.purchased
             ? "border-emerald-600 bg-emerald-600"
             : "border-slate-300 bg-white text-transparent"
         }`}
@@ -221,8 +274,9 @@ export function ShoppingItemRow({
       <div className="grid shrink-0 grid-cols-2 gap-1">
         <button
           type="button"
+          onPointerDown={stopInteractivePointer}
           onClick={() => onMove(item, "up")}
-          disabled={busy || first}
+          disabled={busy || first || selectionMode}
           className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30"
           aria-label={`Subir ${item.name}`}
           title="Subir"
@@ -231,8 +285,9 @@ export function ShoppingItemRow({
         </button>
         <button
           type="button"
+          onPointerDown={stopInteractivePointer}
           onClick={() => onMove(item, "down")}
-          disabled={busy || last}
+          disabled={busy || last || selectionMode}
           className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30"
           aria-label={`Descer ${item.name}`}
           title="Descer"
@@ -241,8 +296,9 @@ export function ShoppingItemRow({
         </button>
         <button
           type="button"
+          onPointerDown={stopInteractivePointer}
           onClick={() => setEditing(true)}
-          disabled={busy}
+          disabled={busy || selectionMode}
           className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-40"
           aria-label={`Editar ${item.name}`}
           title="Editar"
@@ -251,8 +307,9 @@ export function ShoppingItemRow({
         </button>
         <button
           type="button"
+          onPointerDown={stopInteractivePointer}
           onClick={() => onDelete(item)}
-          disabled={busy}
+          disabled={busy || selectionMode}
           className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-40"
           aria-label={`Excluir ${item.name}`}
           title="Excluir"
