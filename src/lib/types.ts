@@ -37,6 +37,15 @@ export type ShoppingItem = {
   updated_at: string;
 };
 
+export type ShoppingListCollaborator = {
+  list_id: string;
+  user_id: string;
+  role: "editor" | string;
+  email: string | null;
+  display_name: string | null;
+  created_at: string;
+};
+
 export type ListStats = {
   total: number;
   purchased: number;

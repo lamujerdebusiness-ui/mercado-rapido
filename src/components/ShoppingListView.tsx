@@ -1,17 +1,29 @@
 "use client";
 
 import { ChangeEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
-import { Archive, ArchiveRestore, ArrowLeft, CheckCircle2, Copy, RotateCcw, Share2, Trash2 } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowLeft,
+  CheckCircle2,
+  Copy,
+  RotateCcw,
+  Share2,
+  Trash2,
+  UsersRound,
+} from "lucide-react";
 import { AddItemForm } from "./AddItemForm";
 import { CategorySection } from "./CategorySection";
 import { EmptyState } from "./EmptyState";
 import { CATEGORIES } from "@/lib/categories";
-import type { Category, ShoppingItem, ShoppingList } from "@/lib/types";
+import type { Category, ShoppingItem, ShoppingList, ShoppingListCollaborator } from "@/lib/types";
 import { formatCurrency, getCompletionPercent, getListStats, sortItems } from "@/lib/utils";
 
 type ShoppingListViewProps = {
   list: ShoppingList;
   items: ShoppingItem[];
+  collaborators: ShoppingListCollaborator[];
+  currentUserId: string;
   busy?: boolean;
   error?: string;
   onBack: () => void;
@@ -41,6 +53,8 @@ type ShoppingListViewProps = {
 export function ShoppingListView({
   list,
   items,
+  collaborators,
+  currentUserId,
   busy,
   error,
   onBack,
@@ -62,6 +76,7 @@ export function ShoppingListView({
   const [renaming, setRenaming] = useState(false);
   const stats = getListStats(items);
   const percent = getCompletionPercent(items);
+  const sharingText = getSharingText(list, collaborators, currentUserId);
 
   useEffect(() => {
     setName(list.name);
@@ -151,6 +166,12 @@ export function ShoppingListView({
           className="w-full rounded-lg border border-transparent bg-slate-50 px-3 py-2 text-2xl font-bold tracking-tight text-slate-950 outline-none focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-100"
           disabled={renaming}
         />
+        {sharingText ? (
+          <p className="mt-3 flex items-start gap-2 rounded-lg bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">
+            <UsersRound size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{sharingText}</span>
+          </p>
+        ) : null}
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <SummaryTile label="Itens" value={stats.total} />
           <SummaryTile label="Comprados" value={stats.purchased} />
@@ -255,4 +276,33 @@ function SummaryTile({ label, value }: { label: string; value: number | string }
       <p className="text-xs font-medium text-slate-500">{label}</p>
     </div>
   );
+}
+
+function getSharingText(
+  list: ShoppingList,
+  collaborators: ShoppingListCollaborator[],
+  currentUserId: string,
+) {
+  if (list.user_id !== currentUserId) {
+    const otherNames = formatNames(collaborators.filter((collaborator) => collaborator.user_id !== currentUserId));
+    return otherNames ? `Lista compartilhada com você e ${otherNames}` : "Lista compartilhada com você";
+  }
+
+  if (collaborators.length === 0) {
+    return "";
+  }
+
+  return `Lista compartilhada com ${formatNames(collaborators)}`;
+}
+
+function formatNames(collaborators: ShoppingListCollaborator[]) {
+  const names = collaborators.map((collaborator) => collaborator.display_name || collaborator.email || "Pessoa");
+  const visibleNames = names.slice(0, 3).join(", ");
+  const remaining = names.length - 3;
+
+  if (remaining > 0) {
+    return `${visibleNames} +${remaining}`;
+  }
+
+  return visibleNames;
 }

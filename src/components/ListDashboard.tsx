@@ -3,11 +3,13 @@
 import { Plus } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 import { ListCard } from "./ListCard";
-import type { DashboardView, ListStats, ShoppingList } from "@/lib/types";
+import type { DashboardView, ListStats, ShoppingList, ShoppingListCollaborator } from "@/lib/types";
 
 type ListDashboardProps = {
   lists: ShoppingList[];
   statsByList: Record<string, ListStats>;
+  collaboratorsByList: Record<string, ShoppingListCollaborator[]>;
+  currentUserId: string;
   view: DashboardView;
   loading: boolean;
   busy?: boolean;
@@ -24,6 +26,8 @@ type ListDashboardProps = {
 export function ListDashboard({
   lists,
   statsByList,
+  collaboratorsByList,
+  currentUserId,
   view,
   loading,
   busy,
@@ -111,6 +115,8 @@ export function ListDashboard({
             key={list.id}
             list={list}
             stats={statsByList[list.id] ?? { total: 0, purchased: 0, pending: 0, estimatedTotal: 0, purchasedTotal: 0 }}
+            collaborators={collaboratorsByList[list.id] ?? []}
+            currentUserId={currentUserId}
             busy={busy}
             onOpen={onOpenList}
             onDuplicate={onDuplicateList}

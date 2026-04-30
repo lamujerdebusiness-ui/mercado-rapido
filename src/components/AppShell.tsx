@@ -7,7 +7,14 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { ListDashboard } from "./ListDashboard";
 import { ShoppingListView } from "./ShoppingListView";
 import { supabase } from "@/lib/supabaseClient";
-import type { Category, DashboardView, ListStats, ShoppingItem, ShoppingList } from "@/lib/types";
+import type {
+  Category,
+  DashboardView,
+  ListStats,
+  ShoppingItem,
+  ShoppingList,
+  ShoppingListCollaborator,
+} from "@/lib/types";
 import { getListStats, getSupabaseMessage, sortItems } from "@/lib/utils";
 
 type AppShellProps = {
@@ -27,6 +34,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
   const user = session.user;
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [collaborators, setCollaborators] = useState<ShoppingListCollaborator[]>([]);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [dashboardView, setDashboardView] = useState<DashboardView>("active");
   const [loading, setLoading] = useState(true);
@@ -46,6 +54,13 @@ export function AppShell({ session, shareToken }: AppShellProps) {
       return acc;
     }, {});
   }, [items, lists]);
+
+  const collaboratorsByList = useMemo(() => {
+    return collaborators.reduce<Record<string, ShoppingListCollaborator[]>>((acc, collaborator) => {
+      acc[collaborator.list_id] = [...(acc[collaborator.list_id] ?? []), collaborator];
+      return acc;
+    }, {});
+  }, [collaborators]);
 
   useEffect(() => {
     void loadAll(shareToken);
@@ -75,7 +90,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
       }
     }
 
-    const [listsResult, itemsResult] = await Promise.all([
+    const [listsResult, itemsResult, collaboratorsResult] = await Promise.all([
       supabase
         .from("shopping_lists")
         .select("*")
@@ -86,6 +101,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
         .select("*")
         .order("position", { ascending: true })
         .returns<ShoppingItem[]>(),
+      supabase.rpc("get_accessible_list_collaborators").returns<ShoppingListCollaborator[]>(),
     ]);
 
     if (listsResult.error) {
@@ -108,6 +124,21 @@ export function AppShell({ session, shareToken }: AppShellProps) {
       );
     } else {
       setItems(itemsResult.data ?? []);
+    }
+
+    if (collaboratorsResult.error) {
+      setError(
+        getSupabaseMessage(
+          collaboratorsResult.error,
+          "Não foi possível carregar os compartilhamentos das listas.",
+        ),
+      );
+    } else {
+      setCollaborators(
+        Array.isArray(collaboratorsResult.data)
+          ? (collaboratorsResult.data as ShoppingListCollaborator[])
+          : [],
+      );
     }
 
     if (sharedListId) {
@@ -223,6 +254,7 @@ export function AppShell({ session, shareToken }: AppShellProps) {
     } else {
       setLists((current) => current.filter((item) => item.id !== list.id));
       setItems((current) => current.filter((item) => item.list_id !== list.id));
+      setCollaborators((current) => current.filter((item) => item.list_id !== list.id));
       if (selectedListId === list.id) {
         setSelectedListId(null);
       }
@@ -599,6 +631,8 @@ export function AppShell({ session, shareToken }: AppShellProps) {
         <ShoppingListView
           list={selectedList}
           items={selectedItems}
+          collaborators={collaboratorsByList[selectedList.id] ?? []}
+          currentUserId={user.id}
           busy={busy}
           error={error}
           onBack={() => setSelectedListId(null)}
@@ -620,6 +654,8 @@ export function AppShell({ session, shareToken }: AppShellProps) {
         <ListDashboard
           lists={lists}
           statsByList={statsByList}
+          collaboratorsByList={collaboratorsByList}
+          currentUserId={user.id}
           view={dashboardView}
           loading={loading}
           busy={busy || loading}
